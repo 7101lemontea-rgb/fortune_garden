@@ -1,0 +1,56 @@
+# [OS / Miscellaneous]
+.DS_Store
+.history
+.svn/
+*.class
+*.log
+*.pyc
+*.swp
+Thumbs.db
+
+# [IDE - VS Code & IntelliJ]
+.vscode/settings.json
+.idea/
+*.iml
+*.ipr
+*.iws
+.atom/
+
+# [Flutter / Dart Core]
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+.pub-cache/
+/build/
+/coverage/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+
+# [Platform Specific - Android/Windows]
+/android/app/debug
+/android/app/profile
+/android/app/release
+windows/flutter/ephemeral/
+
+# [Generated Code (Optional)]
+# 만약 생성된 파일들을 버전 관리에 포함하고 싶다면 아래 두 줄을 주석 처리하세요.
+*.g.dart
+*.freezed.dart
+
+# [Environment / Secrets]
+# 보안을 위해 절대 커밋하면 안 되는 파일들입니다.
+.env
+.env.*
+lib/infrastructure/shelf_server/secret_config.dart
+android/key.properties
+android/app/*.jks
+
+# [Others]
+.build/
+.buildlog/
+.swiftpm/
+migrate_working_dir/
+app.*.symbols
+app.*.map.json
