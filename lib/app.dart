@@ -1,9 +1,12 @@
 // lib/app.dart
+//
+// 앱 루트 위젯. go_router 연결 및 initializeApp() 호출.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_initializer.dart';
+import 'presentation/router/app_router.dart';
 
 class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
@@ -37,43 +40,16 @@ class _MyAppState extends ConsumerState<MyApp> {
       );
     }
 
-    return MaterialApp(
+    final router = ref.watch(appRouterProvider);
+
+    return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Fortune Garden',
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: Colors.green,
       ),
-      home: const MyHomePage(),
-    );
-  }
-}
-
-// MyHomePage — 기존 코드 그대로 이동
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Fortune Garden'),
-        centerTitle: true,
-      ),
-      body: const Center(
-        child: Text(
-          '빈 페이지',
-          style: TextStyle(
-            fontSize: 18,
-            color: Color.fromARGB(255, 97, 126, 102),
-          ),
-        ),
-      ),
+      routerConfig: router,
     );
   }
 }
