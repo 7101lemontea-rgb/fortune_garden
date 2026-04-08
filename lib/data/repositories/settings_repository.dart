@@ -12,12 +12,13 @@ class SettingsRepository implements ISettingsRepository {
       _db.getSetting(key, defaultValue: defaultValue);
 
   @override
-  Future<void> set(String key, String? value) =>
-      _db.setSetting(key, value);
+  Future<void> set(String key, String? value) => _db.setSetting(key, value);
 
   @override
   Future<void> delete(String key) =>
-      (_db.delete(_db.appSettings)
-            ..where((t) => t.key.equals(key)))
-          .go();
+      (_db.delete(_db.appSettings)..where((t) => t.key.equals(key))).go();
+
+  @override
+  Stream<String?> watchValue(String key, {String? defaultValue}) =>
+      _db.watchSetting(key, defaultValue: defaultValue);
 }

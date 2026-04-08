@@ -35,10 +35,10 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => context.go('/accounts'),
           ),
           const Divider(),
-          FutureBuilder<String?>(
-            future: ref
-                .read(settingsRepositoryProvider)
-                .get('theme', defaultValue: 'system'),
+          StreamBuilder<String?>(
+            stream: ref
+                .watch(settingsRepositoryProvider)
+                .watchValue('theme', defaultValue: 'system'),
             builder: (context, snap) {
               final val = snap.data ?? 'system';
               return ListTile(
@@ -49,14 +49,12 @@ class SettingsScreen extends ConsumerWidget {
                   underline: const SizedBox.shrink(),
                   items: const [
                     DropdownMenuItem(value: 'system', child: Text('시스템')),
-                    DropdownMenuItem(value: 'light',  child: Text('라이트')),
-                    DropdownMenuItem(value: 'dark',   child: Text('다크')),
+                    DropdownMenuItem(value: 'light', child: Text('라이트')),
+                    DropdownMenuItem(value: 'dark', child: Text('다크')),
                   ],
                   onChanged: (v) {
                     if (v != null) {
-                      ref
-                          .read(settingsRepositoryProvider)
-                          .set('theme', v);
+                      ref.read(settingsRepositoryProvider).set('theme', v);
                     }
                   },
                 ),

@@ -4,12 +4,14 @@
 // main.dart를 단순하게 유지하기 위해 분리.
 //
 // 호출 순서:
-//   1. 금융기관 코드 Seed
-//   2. CSV 파서 프로필 Seed
-//   3. [kDebugMode 전용] 임시 프로필·계좌 Seed
+//   1. 한국어 로케일 데이터 초기화 (intl)
+//   2. 금융기관 코드 Seed
+//   3. CSV 파서 프로필 Seed
+//   4. [kDebugMode 전용] 임시 프로필·계좌 Seed
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'data/database/database_provider.dart';
 import 'data/database/seed_institutions.dart';
@@ -17,6 +19,9 @@ import 'data/database/seed_dev_data.dart';
 
 /// 앱 시작 시 1회 실행되는 초기화 함수.
 Future<void> initializeApp(WidgetRef ref) async {
+  // DateFormat('ko') 사용 전 반드시 호출해야 함
+  await initializeDateFormatting('ko');
+
   final db = ref.read(appDatabaseProvider);
 
   // 금융기관 코드 20개 upsert

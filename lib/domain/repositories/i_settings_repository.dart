@@ -11,4 +11,10 @@ abstract interface class ISettingsRepository {
 
   /// 설정 값 삭제.
   Future<void> delete(String key);
+
+  /// 설정 값 실시간 구독. ★ 테마 동적 적용용 신규 추가
+  ///
+  /// [key]에 해당하는 값이 변경될 때마다 새 이벤트를 emit.
+  /// 값이 없거나 null이면 [defaultValue]를 emit.
+  Stream<String?> watchValue(String key, {String? defaultValue});
 }
