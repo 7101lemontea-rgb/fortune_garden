@@ -44,6 +44,7 @@ dependencies:
   crypto: ^3.0.7
   go_router: ^17.1.0
   charset_converter: ^2.3.0
+  flex_color_picker: ^3.8.0
 
 dev_dependencies:
   flutter_test:
