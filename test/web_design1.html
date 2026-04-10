@@ -1,0 +1,595 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;family=Be+Vietnam+Pro:wght@100;200;300;400;500;600;700;800;900&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-dim": "#dddad1",
+              "on-surface-variant": "#44483f",
+              "on-error-container": "#93000a",
+              "primary-fixed-dim": "#b7cea5",
+              surface: "#fcf9f0",
+              "surface-tint": "#506443",
+              "on-secondary-fixed-variant": "#3e4c16",
+              "on-secondary-fixed": "#161f00",
+              "surface-container-highest": "#e5e2da",
+              "on-secondary": "#ffffff",
+              "error-container": "#ffdad6",
+              "on-primary-fixed": "#0f2006",
+              "tertiary-container": "#7c552c",
+              error: "#ba1a1a",
+              "tertiary-fixed": "#ffdcbd",
+              "on-surface": "#1c1c17",
+              "inverse-on-surface": "#f4f1e8",
+              primary: "#384b2c",
+              "outline-variant": "#c4c8bd",
+              "inverse-surface": "#31312b",
+              "secondary-container": "#d6e7a1",
+              "on-tertiary-fixed": "#2c1600",
+              tertiary: "#613e17",
+              "on-primary": "#ffffff",
+              outline: "#74786f",
+              "primary-fixed": "#d3eac0",
+              "surface-bright": "#fcf9f0",
+              "surface-container": "#f1eee5",
+              "surface-variant": "#e5e2da",
+              "on-tertiary-fixed-variant": "#623f18",
+              "primary-container": "#4f6342",
+              "on-tertiary-container": "#ffcd9f",
+              "secondary-fixed": "#d9eaa3",
+              "surface-container-lowest": "#ffffff",
+              "on-primary-fixed-variant": "#394c2d",
+              "on-background": "#1c1c17",
+              "secondary-fixed-dim": "#bdce89",
+              "tertiary-fixed-dim": "#f0bd8b",
+              background: "#fcf9f0",
+              "surface-container-low": "#f6f3ea",
+              "on-tertiary": "#ffffff",
+              secondary: "#56642b",
+              "inverse-primary": "#b7cea5",
+              "surface-container-high": "#ebe8df",
+              "on-error": "#ffffff",
+              "on-primary-container": "#c7deb5",
+              "on-secondary-container": "#5a682f",
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+            fontFamily: {
+              headline: ["Newsreader"],
+              body: ["Be Vietnam Pro"],
+              label: ["Be Vietnam Pro"],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Be Vietnam Pro", sans-serif;
+      }
+      .serif-title {
+        font-family: "Newsreader", serif;
+      }
+      .grain-overlay {
+        position: fixed;
+        inset: 0;
+        background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuB5fuAdLZOKFLt5FPgaAhQw9eqifKCxpDV2PhBPo502_iAkuQTgi4NNR30yae2z1MwpZ4kl5sMBOFFKE44s2mSekJkHIbx1GFtHJSO9v7cVHmW-HUdfef9qVC6KDdWLXX4CPzX5DXmhfiIlRhpqMRx2QnpR-VwM5MipmB2wVTvJu8VvvNN8uBXWXqzG-jRJACIaetekhOSJI82DwAu2GXpqvZpuwtLNvcacIcgvosROzg630RZOxmdvT5BoqnTiAbM2uq_6NXLOW_v5);
+        opacity: 0.03;
+        pointer-events: none;
+        z-index: 9999;
+      }
+      .sketched-border {
+        border-bottom: 1.5px solid rgba(116, 120, 111, 0.2);
+        border-image: url('data:image/svg+xml;utf8,<svg preserveAspectRatio="none" viewBox="0 0 100 1" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0 0.5C20 0.2 40 0.8 60 0.5C80 0.2 100 0.5 100 0.5" stroke="rgba(116, 120, 111, 0.4)" stroke-width="0.5"/></svg>')
+          1;
+      }
+    </style>
+  </head>
+  <body class="bg-background text-on-background min-h-screen">
+    <div class="grain-overlay"></div>
+    <!-- TopAppBar -->
+    <header
+      class="fixed top-0 w-full z-50 bg-[#fcf9f0]/80 dark:bg-[#1c1c17]/80 backdrop-blur-md"
+    >
+      <div
+        class="flex justify-between items-center px-8 py-6 max-w-7xl mx-auto"
+      >
+        <div
+          class="font-serif text-2xl font-bold tracking-tight text-[#384b2c] dark:text-[#fcf9f0] Newsreader"
+        >
+          The Tactile Archivist
+        </div>
+        <nav
+          class="hidden md:flex items-center gap-8 font-serif italic text-lg Newsreader"
+        >
+          <a
+            class="text-[#384b2c] dark:text-[#fcf9f0] border-b-2 border-[#384b2c] pb-1 hover:opacity-100 transition-opacity duration-300"
+            href="#"
+            >Ledger</a
+          >
+          <a
+            class="text-[#4f6342] opacity-60 dark:text-[#f6f3ea] hover:opacity-100 transition-opacity duration-300"
+            href="#"
+            >Reflections</a
+          >
+          <a
+            class="text-[#4f6342] opacity-60 dark:text-[#f6f3ea] hover:opacity-100 transition-opacity duration-300"
+            href="#"
+            >Archives</a
+          >
+        </nav>
+        <div class="flex items-center gap-6">
+          <span
+            class="material-symbols-outlined text-[#384b2c] cursor-pointer hover:opacity-100 transition-opacity duration-300"
+            >search</span
+          >
+          <span
+            class="material-symbols-outlined text-[#384b2c] cursor-pointer hover:opacity-100 transition-opacity duration-300"
+            >settings</span
+          >
+          <div
+            class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-fixed"
+          >
+            <img
+              class="w-full h-full object-cover"
+              data-alt="Portrait of an elegant man in a tweed blazer in a library setting with soft warm lighting"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBGkxmIIqx4ASUoslz7U9wgPbFupFMJmErzgsqh6z8GcSHmRWhtihPEATVHZPGv8B_0e7XMI5wE9CrWcOrbPGdosl4kvVZeHfJEwf0U7gVkSI1GqLds5waG4kGWY2j3j-phzv6f5QWk2_UG8qgbYu1Isu7Tk2SeRNjJzcEdZ0X2yv0jUPxGXvBmIhVI8_l0tjMSaH0Gnl-DGZoosKuZCGqtOX460WY6_AXGbQPWaQwMHUTJDmL8jXFCfd220JewxsIEKjN0dsEdV4Up"
+            />
+          </div>
+        </div>
+      </div>
+    </header>
+    <!-- SideNavBar -->
+    <aside
+      class="fixed left-0 top-0 flex flex-col py-10 z-40 bg-[#f6f3ea] dark:bg-[#252520] h-screen rounded-r-3xl w-72 hidden lg:flex shadow-[20px_0_40px_rgba(28,28,23,0.04)]"
+    >
+      <div class="px-10 mb-12">
+        <div class="font-serif text-xl text-[#384b2c] mb-6">Archivist</div>
+        <h3 class="font-headline text-2xl italic text-[#384b2c]">
+          Good morning, Archivist
+        </h3>
+        <p class="font-body text-sm text-[#4f6342] opacity-70">
+          Your story continues...
+        </p>
+      </div>
+      <nav class="flex-1 flex flex-col font-sans text-sm Be Vietnam Pro">
+        <a
+          class="bg-[#ffffff] dark:bg-[#384b2c] text-[#384b2c] dark:text-[#fcf9f0] rounded-l-full ml-4 pl-6 py-4 shadow-sm font-bold flex items-center gap-4 transition-all ease-in-out duration-300"
+          href="#"
+        >
+          <span
+            class="material-symbols-outlined"
+            style="font-variation-settings: &quot;FILL&quot; 1"
+            >book_2</span
+          >
+          Journal
+        </a>
+        <a
+          class="text-[#4f6342] dark:text-[#f6f3ea]/70 px-10 py-4 hover:translate-x-1 transition-transform flex items-center gap-4 hover:text-[#384b2c]"
+          href="#"
+        >
+          <span class="material-symbols-outlined">calendar_month</span>
+          Monthly
+        </a>
+        <a
+          class="text-[#4f6342] dark:text-[#f6f3ea]/70 px-10 py-4 hover:translate-x-1 transition-transform flex items-center gap-4 hover:text-[#384b2c]"
+          href="#"
+        >
+          <span class="material-symbols-outlined">savings</span>
+          Savings
+        </a>
+        <a
+          class="text-[#4f6342] dark:text-[#f6f3ea]/70 px-10 py-4 hover:translate-x-1 transition-transform flex items-center gap-4 hover:text-[#384b2c]"
+          href="#"
+        >
+          <span class="material-symbols-outlined">account_balance_wallet</span>
+          Debts
+        </a>
+        <a
+          class="text-[#4f6342] dark:text-[#f6f3ea]/70 px-10 py-4 hover:translate-x-1 transition-transform flex items-center gap-4 hover:text-[#384b2c]"
+          href="#"
+        >
+          <span class="material-symbols-outlined">history_edu</span>
+          Legacy
+        </a>
+      </nav>
+      <div class="px-8 mt-auto">
+        <button
+          class="w-full bg-primary text-on-primary py-4 rounded-full font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-sm"
+        >
+          <span class="material-symbols-outlined">add</span>
+          New Entry
+        </button>
+      </div>
+    </aside>
+    <!-- Main Canvas -->
+    <main class="lg:ml-72 pt-32 px-8 pb-20 max-w-7xl">
+      <div class="mb-12 flex justify-between items-end">
+        <div>
+          <h1 class="font-headline text-5xl italic text-primary mb-2">
+            The Ledger
+          </h1>
+          <p class="font-body text-on-surface-variant max-w-md">
+            Every expenditure is a line in your story. Curate your wealth with
+            intention.
+          </p>
+        </div>
+        <div class="text-right">
+          <div class="font-headline text-4xl text-primary">$12,482.00</div>
+          <div
+            class="text-sm font-bold text-secondary uppercase tracking-widest"
+          >
+            Total Liquidity
+          </div>
+        </div>
+      </div>
+      <!-- Ledger Container -->
+      <section class="bg-surface-container-low rounded-xl p-2 min-h-screen">
+        <div
+          class="bg-surface-container-lowest rounded-lg shadow-[0_4px_20px_rgba(28,28,23,0.02)] overflow-hidden"
+        >
+          <!-- Ledger Header -->
+          <div
+            class="grid grid-cols-12 gap-4 px-8 py-6 bg-surface-container-high border-b border-outline-variant/20 font-bold text-xs uppercase tracking-tighter text-on-surface-variant"
+          >
+            <div class="col-span-1">Date</div>
+            <div class="col-span-6">Description &amp; Category</div>
+            <div class="col-span-2 text-right">Debit</div>
+            <div class="col-span-2 text-right">Credit</div>
+            <div class="col-span-1 text-right">Status</div>
+          </div>
+          <!-- Ledger Entries -->
+          <div class="divide-y divide-outline-variant/10">
+            <!-- Row 1 -->
+            <div
+              class="grid grid-cols-12 gap-4 px-8 py-8 items-center hover:bg-surface-container/50 transition-colors group"
+            >
+              <div
+                class="col-span-1 font-headline text-lg italic text-on-surface-variant"
+              >
+                Oct 14
+              </div>
+              <div class="col-span-6 flex items-center gap-6">
+                <div
+                  class="w-12 h-12 rounded-full bg-secondary-fixed flex items-center justify-center text-secondary"
+                >
+                  <span
+                    class="material-symbols-outlined"
+                    style="font-size: 28px"
+                    >house</span
+                  >
+                </div>
+                <div>
+                  <div class="font-headline text-xl text-on-surface">
+                    Monthly Estate Lease
+                  </div>
+                  <div class="text-xs text-on-surface-variant/60 font-medium">
+                    Housing &amp; Sanctuary
+                  </div>
+                </div>
+              </div>
+              <div
+                class="col-span-2 text-right font-headline text-xl text-error"
+              >
+                $2,400.00
+              </div>
+              <div
+                class="col-span-2 text-right font-headline text-xl text-on-surface-variant/30"
+              >
+                —
+              </div>
+              <div class="col-span-1 text-right">
+                <span class="material-symbols-outlined text-primary opacity-40"
+                  >verified</span
+                >
+              </div>
+            </div>
+            <!-- Row 2 -->
+            <div
+              class="grid grid-cols-12 gap-4 px-8 py-8 items-center hover:bg-surface-container/50 transition-colors group"
+            >
+              <div
+                class="col-span-1 font-headline text-lg italic text-on-surface-variant"
+              >
+                Oct 12
+              </div>
+              <div class="col-span-6 flex items-center gap-6">
+                <div
+                  class="w-12 h-12 rounded-full bg-tertiary-fixed flex items-center justify-center text-tertiary"
+                >
+                  <span
+                    class="material-symbols-outlined"
+                    style="font-size: 28px"
+                    >local_library</span
+                  >
+                </div>
+                <div>
+                  <div class="font-headline text-xl text-on-surface">
+                    Artisan Stationery &amp; Ink
+                  </div>
+                  <div class="text-xs text-on-surface-variant/60 font-medium">
+                    Curiosities &amp; Tools
+                  </div>
+                </div>
+              </div>
+              <div
+                class="col-span-2 text-right font-headline text-xl text-error"
+              >
+                $42.50
+              </div>
+              <div
+                class="col-span-2 text-right font-headline text-xl text-on-surface-variant/30"
+              >
+                —
+              </div>
+              <div class="col-span-1 text-right">
+                <span class="material-symbols-outlined text-primary opacity-40"
+                  >verified</span
+                >
+              </div>
+            </div>
+            <!-- Row 3 -->
+            <div
+              class="grid grid-cols-12 gap-4 px-8 py-8 items-center hover:bg-surface-container/50 transition-colors group"
+            >
+              <div
+                class="col-span-1 font-headline text-lg italic text-on-surface-variant"
+              >
+                Oct 10
+              </div>
+              <div class="col-span-6 flex items-center gap-6">
+                <div
+                  class="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center text-primary"
+                >
+                  <span
+                    class="material-symbols-outlined"
+                    style="font-size: 28px"
+                    >payments</span
+                  >
+                </div>
+                <div>
+                  <div class="font-headline text-xl text-on-surface">
+                    Consultation Dividend
+                  </div>
+                  <div class="text-xs text-on-surface-variant/60 font-medium">
+                    Professional Endeavors
+                  </div>
+                </div>
+              </div>
+              <div
+                class="col-span-2 text-right font-headline text-xl text-on-surface-variant/30"
+              >
+                —
+              </div>
+              <div
+                class="col-span-2 text-right font-headline text-xl text-primary"
+              >
+                $1,250.00
+              </div>
+              <div class="col-span-1 text-right">
+                <span class="material-symbols-outlined text-primary opacity-40"
+                  >verified</span
+                >
+              </div>
+            </div>
+            <!-- Row 4 -->
+            <div
+              class="grid grid-cols-12 gap-4 px-8 py-8 items-center hover:bg-surface-container/50 transition-colors group"
+            >
+              <div
+                class="col-span-1 font-headline text-lg italic text-on-surface-variant"
+              >
+                Oct 08
+              </div>
+              <div class="col-span-6 flex items-center gap-6">
+                <div
+                  class="w-12 h-12 rounded-full bg-secondary-fixed flex items-center justify-center text-secondary"
+                >
+                  <span
+                    class="material-symbols-outlined"
+                    style="font-size: 28px"
+                    >shopping_bag</span
+                  >
+                </div>
+                <div>
+                  <div class="font-headline text-xl text-on-surface">
+                    Whole Garden Provisions
+                  </div>
+                  <div class="text-xs text-on-surface-variant/60 font-medium">
+                    Sustenance
+                  </div>
+                </div>
+              </div>
+              <div
+                class="col-span-2 text-right font-headline text-xl text-error"
+              >
+                $186.20
+              </div>
+              <div
+                class="col-span-2 text-right font-headline text-xl text-on-surface-variant/30"
+              >
+                —
+              </div>
+              <div class="col-span-1 text-right">
+                <span class="material-symbols-outlined text-primary opacity-40"
+                  >history</span
+                >
+              </div>
+            </div>
+            <!-- Row 5 (Asymmetric Detail Card) -->
+            <div
+              class="p-12 bg-surface-container-high/30 flex flex-col md:flex-row gap-12 items-center"
+            >
+              <div
+                class="w-48 h-48 rounded-2xl overflow-hidden shadow-lg rotate-[-2deg]"
+              >
+                <img
+                  class="w-full h-full object-cover"
+                  data-alt="A vintage leather journal with a fountain pen resting on top, surrounded by small dry leaves on a rustic table"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwDpYJ_zalasv7PncTWnT67_fIR5ao7q64fgkIxF8EMmY56-J2jyw_OK3vtcU_a1hoDHaY1hQ-hIHGFp5btqkbVvLPHU6bBUcBjKZ028WOxrWnTxwOB4P5NCS8WlKeFD-Gxl3vt0Ss-gfVYQr3YsjnUl7h-g-PKnKlIDUwGJDR7o77sz44FcVRfx92I7kVzakaK5k74k3nG1SmonIWBICjvXpGP0L425Oh7_1Ikfn-XCyTI1dWvLOchz31_ftnFk5yJXiQT_Q-hVDR"
+                />
+              </div>
+              <div class="flex-1">
+                <span
+                  class="text-[10px] uppercase font-bold tracking-[0.2em] text-secondary"
+                  >Archivist Note</span
+                >
+                <h4 class="font-headline text-3xl italic text-primary mt-2">
+                  The Autumn Harvest
+                </h4>
+                <p
+                  class="font-body text-on-surface-variant mt-4 leading-relaxed italic opacity-80"
+                >
+                  "Spent more this month on gathering supplies for the winter
+                  reflections. The paper from the mill feels exceptional under
+                  the nib. A worthy investment for the legacy volumes."
+                </p>
+              </div>
+            </div>
+            <!-- Row 6 -->
+            <div
+              class="grid grid-cols-12 gap-4 px-8 py-8 items-center hover:bg-surface-container/50 transition-colors group"
+            >
+              <div
+                class="col-span-1 font-headline text-lg italic text-on-surface-variant"
+              >
+                Oct 05
+              </div>
+              <div class="col-span-6 flex items-center gap-6">
+                <div
+                  class="w-12 h-12 rounded-full bg-tertiary-fixed flex items-center justify-center text-tertiary"
+                >
+                  <span
+                    class="material-symbols-outlined"
+                    style="font-size: 28px"
+                    >train</span
+                  >
+                </div>
+                <div>
+                  <div class="font-headline text-xl text-on-surface">
+                    Cross-County Rail Passage
+                  </div>
+                  <div class="text-xs text-on-surface-variant/60 font-medium">
+                    Wander &amp; Transit
+                  </div>
+                </div>
+              </div>
+              <div
+                class="col-span-2 text-right font-headline text-xl text-error"
+              >
+                $112.00
+              </div>
+              <div
+                class="col-span-2 text-right font-headline text-xl text-on-surface-variant/30"
+              >
+                —
+              </div>
+              <div class="col-span-1 text-right">
+                <span class="material-symbols-outlined text-primary opacity-40"
+                  >verified</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Vintage Ink Stamp CTA -->
+        <div class="mt-12 flex justify-center">
+          <button class="relative group">
+            <div
+              class="absolute inset-0 bg-primary opacity-10 rounded-full blur-xl group-hover:opacity-20 transition-opacity"
+            ></div>
+            <div
+              class="relative px-10 py-6 bg-transparent border-4 border-primary/40 rounded-xl flex flex-col items-center justify-center transform rotate-[-3deg] hover:rotate-0 transition-all duration-300"
+            >
+              <span
+                class="text-[10px] font-bold text-primary uppercase tracking-[0.4em] mb-1"
+                >Authenticated</span
+              >
+              <span
+                class="font-headline text-2xl font-bold text-primary tracking-tighter"
+                >NEW ENTRY</span
+              >
+              <span class="text-[8px] font-medium text-primary/60 mt-1"
+                >VOL. 2024 / ARCHIVIST NO. 402</span
+              >
+              <div
+                class="absolute -bottom-2 -right-2 opacity-20 transform rotate-12"
+              >
+                <span
+                  class="material-symbols-outlined"
+                  style="
+                    font-size: 40px;
+                    font-variation-settings: &quot;FILL&quot; 1;
+                  "
+                  >history_edu</span
+                >
+              </div>
+            </div>
+          </button>
+        </div>
+      </section>
+    </main>
+    <!-- Mobile Bottom Nav -->
+    <nav
+      class="md:hidden fixed bottom-0 w-full bg-surface/90 backdrop-blur-lg px-6 py-4 flex justify-around items-center border-t border-outline-variant/10 z-50"
+    >
+      <a class="flex flex-col items-center gap-1 text-primary" href="#">
+        <span
+          class="material-symbols-outlined"
+          style="font-variation-settings: &quot;FILL&quot; 1"
+          >book_2</span
+        >
+        <span class="text-[10px] font-bold uppercase">Ledger</span>
+      </a>
+      <a
+        class="flex flex-col items-center gap-1 text-on-surface-variant opacity-60"
+        href="#"
+      >
+        <span class="material-symbols-outlined">analytics</span>
+        <span class="text-[10px] font-bold uppercase">Trends</span>
+      </a>
+      <div
+        class="w-12 h-12 bg-primary rounded-full flex items-center justify-center -mt-10 shadow-lg text-on-primary"
+      >
+        <span class="material-symbols-outlined">add</span>
+      </div>
+      <a
+        class="flex flex-col items-center gap-1 text-on-surface-variant opacity-60"
+        href="#"
+      >
+        <span class="material-symbols-outlined">savings</span>
+        <span class="text-[10px] font-bold uppercase">Vault</span>
+      </a>
+      <a
+        class="flex flex-col items-center gap-1 text-on-surface-variant opacity-60"
+        href="#"
+      >
+        <span class="material-symbols-outlined">person</span>
+        <span class="text-[10px] font-bold uppercase">Account</span>
+      </a>
+    </nav>
+  </body>
+</html>

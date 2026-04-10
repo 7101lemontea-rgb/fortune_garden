@@ -1,0 +1,492 @@
+<!doctype html>
+
+<html class="dark" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Verdant Atelier | Editorial Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&amp;family=Inter:wght@400;500;600&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "inverse-on-surface": "#eff1f3",
+              "on-error-container": "#93000a",
+              "surface-variant": "#e0e3e5",
+              "surface-container-lowest": "#ffffff",
+              "surface-container-low": "#f2f4f6",
+              "on-tertiary-fixed-variant": "#3e4943",
+              "surface-dim": "#d8dadc",
+              "primary-container": "#004f34",
+              "on-tertiary": "#ffffff",
+              "secondary-container": "#d0e1fb",
+              "on-secondary-fixed-variant": "#38485d",
+              "tertiary-fixed": "#d9e6dd",
+              "on-secondary-fixed": "#0b1c30",
+              "tertiary-container": "#3b4741",
+              secondary: "#505f76",
+              "on-tertiary-container": "#a8b5ad",
+              surface: "#f7f9fb",
+              "surface-container-highest": "#e0e3e5",
+              "inverse-primary": "#4edea3",
+              "on-primary-fixed": "#002113",
+              primary: "#003622",
+              "primary-fixed": "#6ffbbe",
+              "on-secondary-container": "#54647a",
+              error: "#ba1a1a",
+              "on-surface-variant": "#404944",
+              "on-tertiary-fixed": "#131e19",
+              "tertiary-fixed-dim": "#bdcac1",
+              "surface-bright": "#f7f9fb",
+              "error-container": "#ffdad6",
+              "secondary-fixed": "#d3e4fe",
+              background: "#f7f9fb",
+              outline: "#707974",
+              "on-error": "#ffffff",
+              "surface-container": "#eceef0",
+              "inverse-surface": "#2d3133",
+              "secondary-fixed-dim": "#b7c8e1",
+              "on-primary-container": "#31c98f",
+              "on-background": "#191c1e",
+              "on-primary-fixed-variant": "#005236",
+              "on-secondary": "#ffffff",
+              "surface-container-high": "#e6e8ea",
+              tertiary: "#25312b",
+              "primary-fixed-dim": "#4edea3",
+              "on-primary": "#ffffff",
+              "on-surface": "#191c1e",
+              "outline-variant": "#bfc9c3",
+              "surface-tint": "#006c49",
+            },
+            borderRadius: {
+              DEFAULT: "0.125rem",
+              lg: "0.25rem",
+              xl: "0.5rem",
+              full: "0.75rem",
+            },
+            fontFamily: {
+              headline: ["Manrope"],
+              body: ["Inter"],
+              label: ["Inter"],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .font-manrope {
+        font-family: "Manrope", sans-serif;
+      }
+      .material-symbols-outlined {
+        font-variation-settings:
+          "FILL" 0,
+          "wght" 400,
+          "GRAD" 0,
+          "opsz" 24;
+      }
+      /* Custom Tonal Shift Surface for Dark Mode */
+      .tonal-shift-surface-container-low {
+        background-color: rgba(0, 54, 34, 0.4);
+      }
+    </style>
+  </head>
+  <body
+    class="bg-primary text-on-primary-container selection:bg-inverse-primary selection:text-primary"
+  >
+    <!-- Sidebar Navigation -->
+    <aside
+      class="h-screen w-64 fixed left-0 top-0 bg-emerald-950 dark:bg-emerald-950 flex flex-col h-full p-4 z-50 tonal-shift-surface-container-low"
+    >
+      <div class="mb-10 px-2">
+        <h1
+          class="text-lg font-black text-emerald-50 tracking-tighter uppercase"
+        >
+          Atelier Admin
+        </h1>
+        <p class="text-xs text-emerald-200/50 font-inter">Lead Designer</p>
+      </div>
+      <nav class="flex-grow space-y-2">
+        <!-- Active Tab: Dashboard -->
+        <a
+          class="flex items-center gap-3 px-4 py-3 bg-emerald-900 text-white rounded-md shadow-sm transition-all duration-300 font-inter text-sm font-medium"
+          href="#"
+        >
+          <span class="material-symbols-outlined" data-icon="dashboard"
+            >dashboard</span
+          >
+          <span>Dashboard</span>
+        </a>
+        <a
+          class="flex items-center gap-3 px-4 py-3 text-emerald-200/70 hover:bg-white/10 transition-all duration-300 font-inter text-sm font-medium"
+          href="#"
+        >
+          <span class="material-symbols-outlined" data-icon="insights"
+            >insights</span
+          >
+          <span>Analytics</span>
+        </a>
+        <a
+          class="flex items-center gap-3 px-4 py-3 text-emerald-200/70 hover:bg-white/10 transition-all duration-300 font-inter text-sm font-medium"
+          href="#"
+        >
+          <span class="material-symbols-outlined" data-icon="inventory_2"
+            >inventory_2</span
+          >
+          <span>Inventory</span>
+        </a>
+        <a
+          class="flex items-center gap-3 px-4 py-3 text-emerald-200/70 hover:bg-white/10 transition-all duration-300 font-inter text-sm font-medium"
+          href="#"
+        >
+          <span class="material-symbols-outlined" data-icon="auto_awesome"
+            >auto_awesome</span
+          >
+          <span>Curations</span>
+        </a>
+        <a
+          class="flex items-center gap-3 px-4 py-3 text-emerald-200/70 hover:bg-white/10 transition-all duration-300 font-inter text-sm font-medium"
+          href="#"
+        >
+          <span class="material-symbols-outlined" data-icon="settings"
+            >settings</span
+          >
+          <span>Settings</span>
+        </a>
+      </nav>
+      <div class="mt-auto space-y-2 border-t border-white/5 pt-6">
+        <button
+          class="w-full mb-4 py-3 px-4 bg-gradient-to-br from-inverse-primary to-primary-fixed-dim text-primary font-bold rounded-md text-sm"
+        >
+          New Collection
+        </button>
+        <a
+          class="flex items-center gap-3 px-4 py-2 text-emerald-200/50 hover:text-emerald-50 transition-colors text-sm"
+          href="#"
+        >
+          <span class="material-symbols-outlined text-sm" data-icon="help"
+            >help</span
+          >
+          <span>Support</span>
+        </a>
+        <a
+          class="flex items-center gap-3 px-4 py-2 text-emerald-200/50 hover:text-emerald-50 transition-colors text-sm"
+          href="#"
+        >
+          <span class="material-symbols-outlined text-sm" data-icon="logout"
+            >logout</span
+          >
+          <span>Sign Out</span>
+        </a>
+      </div>
+    </aside>
+    <!-- Main Content Canvas -->
+    <main class="ml-64 min-h-screen p-8 lg:p-12">
+      <!-- Header Section -->
+      <header class="flex justify-between items-end mb-16">
+        <div class="max-w-2xl">
+          <span
+            class="text-inverse-primary font-label text-xs tracking-widest uppercase mb-4 block"
+            >Operational Overview</span
+          >
+          <h2
+            class="text-5xl lg:text-7xl font-headline font-extrabold text-white leading-none tracking-tighter"
+          >
+            Editorial <br />Precision.
+          </h2>
+        </div>
+        <div class="hidden lg:flex items-center gap-4 pb-2">
+          <div class="text-right">
+            <p class="text-emerald-200/40 text-xs uppercase tracking-widest">
+              Last Sync
+            </p>
+            <p class="text-white font-mono text-sm">12:42:09 GMT</p>
+          </div>
+          <div
+            class="w-12 h-12 rounded-full overflow-hidden border border-white/10"
+          >
+            <img
+              alt="Curator Profile"
+              data-alt="Close-up portrait of a creative director in a minimalist studio setting with soft natural side lighting"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCjui5miUodYRC2GNH-fI3SIGMpJllEZ9Zq-Auc3_zE7mgyOL7t-RIFptfnLD362nAg4vShmtz1slwHi5zXuvm9jt_Kmq0DTuZ-sM92lumFYhJoiJVrMlc3tCeWWRGrQLOtFwvDxRRHAaDOSYvPHNRbGPjDA11sthSvy8b4leFrthj9BbpQdnHYyplLVYN2J-Cw1Abq5yPtdBYdoTgw1yRCzNbUiw5BgyYeW2wqCF0J2Go2imNh2PcQvicCPQDZJYefQzgkYze1P7E"
+            />
+          </div>
+        </div>
+      </header>
+      <!-- Bento Grid Data Visuals -->
+      <section
+        class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-16"
+      >
+        <!-- Growth Metric Card -->
+        <div
+          class="md:col-span-2 bg-emerald-900/40 p-8 rounded-xl flex flex-col justify-between aspect-[2/1] border border-white/5"
+        >
+          <div class="flex justify-between items-start">
+            <span
+              class="material-symbols-outlined text-inverse-primary"
+              data-icon="trending_up"
+              >trending_up</span
+            >
+            <span class="text-xs text-emerald-200/40 font-mono"
+              >Quarterly Yield</span
+            >
+          </div>
+          <div>
+            <h3
+              class="text-6xl font-headline font-bold text-white tracking-tighter"
+            >
+              +24.8%
+            </h3>
+            <div class="w-full h-12 mt-6 flex items-end gap-1">
+              <div class="flex-1 bg-white/5 h-1/4 rounded-t-sm"></div>
+              <div class="flex-1 bg-white/5 h-2/4 rounded-t-sm"></div>
+              <div class="flex-1 bg-white/5 h-1/3 rounded-t-sm"></div>
+              <div
+                class="flex-1 bg-inverse-primary/40 h-2/3 rounded-t-sm"
+              ></div>
+              <div
+                class="flex-1 bg-inverse-primary/60 h-3/4 rounded-t-sm"
+              ></div>
+              <div class="flex-1 bg-inverse-primary h-full rounded-t-sm"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Utility Metric 1 -->
+        <div
+          class="bg-emerald-950 p-6 rounded-xl border border-white/5 flex flex-col justify-between"
+        >
+          <p
+            class="text-xs text-emerald-200/40 uppercase tracking-widest font-semibold"
+          >
+            Active Curations
+          </p>
+          <div class="py-4">
+            <span
+              class="text-4xl font-headline font-bold text-white tracking-tighter"
+              >142</span
+            >
+          </div>
+          <div class="flex items-center gap-2 text-inverse-primary text-xs">
+            <span
+              class="material-symbols-outlined text-xs"
+              data-icon="check_circle"
+              >check_circle</span
+            >
+            <span>12 ready to publish</span>
+          </div>
+        </div>
+        <!-- Utility Metric 2 -->
+        <div
+          class="bg-emerald-950 p-6 rounded-xl border border-white/5 flex flex-col justify-between"
+        >
+          <p
+            class="text-xs text-emerald-200/40 uppercase tracking-widest font-semibold"
+          >
+            Inventory Value
+          </p>
+          <div class="py-4">
+            <span
+              class="text-4xl font-headline font-bold text-white tracking-tighter"
+              >$1.2M</span
+            >
+          </div>
+          <div class="flex items-center gap-2 text-emerald-400/50 text-xs">
+            <span class="material-symbols-outlined text-xs" data-icon="update"
+              >update</span
+            >
+            <span>Updated 2m ago</span>
+          </div>
+        </div>
+      </section>
+      <!-- Curations Grid (The Showpiece) -->
+      <section>
+        <div class="flex justify-between items-center mb-8">
+          <h3 class="text-2xl font-headline font-bold text-white">
+            Active Curations
+          </h3>
+          <a
+            class="text-xs text-inverse-primary hover:underline tracking-widest uppercase font-semibold"
+            href="#"
+            >View All Archive</a
+          >
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <!-- Curation Card 1 -->
+          <div
+            class="group relative overflow-hidden rounded-xl aspect-[4/5] bg-emerald-900"
+          >
+            <img
+              alt="Architectural detail"
+              class="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700"
+              data-alt="Monochromatic architectural photography of a minimalist concrete staircase with dramatic shadows and sharp geometric lines"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDmvwnCAED3HA-EkwXg6I6ZyYAzh9-Pf6wCvNIHfakpBlLZqTDxLLEbX-QfOoyBvW2DpQKPUVejhYnBa3yanGD7RHnVKKYy3Lf-q36oB0MmPaCl0FU3tcRGcDzgD3Y3yI7lYhYlCHYSZEmoGlKMqX7yoGq5XJCa_VgDopFQFex8-usNqA1Qd4_kB5p2Qj2e3UkWlbo8maBjhVSgYFh6BOT4sIOoidAhxkUwpp390QXqv9JhLK1XwqEHI0GnPigTMgjxZ6MvASe0my5m"
+            />
+            <div
+              class="absolute inset-0 bg-gradient-to-t from-primary via-transparent to-transparent opacity-80"
+            ></div>
+            <div class="absolute bottom-0 left-0 p-8 w-full">
+              <p
+                class="text-inverse-primary text-xs uppercase tracking-widest mb-2"
+              >
+                Winter 2024
+              </p>
+              <h4
+                class="text-2xl font-headline font-bold text-white tracking-tight"
+              >
+                Monolith Structures
+              </h4>
+              <div
+                class="mt-4 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              >
+                <span class="text-xs text-emerald-200/60 font-inter"
+                  >86 Items Collected</span
+                >
+                <span
+                  class="material-symbols-outlined text-white"
+                  data-icon="arrow_forward"
+                  >arrow_forward</span
+                >
+              </div>
+            </div>
+          </div>
+          <!-- Curation Card 2 -->
+          <div
+            class="group relative overflow-hidden rounded-xl aspect-[4/5] bg-emerald-900"
+          >
+            <img
+              alt="Botanical study"
+              class="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700"
+              data-alt="Extreme close-up of dark green fern leaves with macro detail and moody low-key lighting in a tropical conservatory"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSzfyjsA4uQJubUBu8gsX3XlpIfw3Vds-1GGCowLNFn4zh5UIOy30tBqfctwq8E3zsMIIsb2uKC3yP-fr6rN-9c4qZkMgrHy2KjeEQj9TzSqiX4MZ4BPw2wVL-NXBgConIGaNcvYNfDkwBB_3J8FLbeu6G7gYKv9eTyBd4Zi1DHSrkMUZR_I6qoCod_lquK1gtORMFqGAs2kCjrWQSgbRyx8lGImCHUGGGdrg2LEctF7Ulk5_S6n5lmf09CvNH6T4bszfSBRanIxOI"
+            />
+            <div
+              class="absolute inset-0 bg-gradient-to-t from-primary via-transparent to-transparent opacity-80"
+            ></div>
+            <div class="absolute bottom-0 left-0 p-8 w-full">
+              <p
+                class="text-inverse-primary text-xs uppercase tracking-widest mb-2"
+              >
+                Spring Pre-order
+              </p>
+              <h4
+                class="text-2xl font-headline font-bold text-white tracking-tight"
+              >
+                Verdant Flora
+              </h4>
+              <div
+                class="mt-4 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              >
+                <span class="text-xs text-emerald-200/60 font-inter"
+                  >114 Items Collected</span
+                >
+                <span
+                  class="material-symbols-outlined text-white"
+                  data-icon="arrow_forward"
+                  >arrow_forward</span
+                >
+              </div>
+            </div>
+          </div>
+          <!-- Curation Card 3 -->
+          <div
+            class="group relative overflow-hidden rounded-xl aspect-[4/5] bg-emerald-900"
+          >
+            <img
+              alt="Interior texture"
+              class="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700"
+              data-alt="Sophisticated living room interior featuring deep emerald velvet textures, dark wood, and warm atmospheric accent lighting"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuAEJXb7m34g71gV1uJbtLSTUHIBCsLSxeJCyDepEmtefjYE0rYzqRbEKs4KcoQ5vqP5obI1YzCYLOMKRpVRo3buRDFn8Py2vcCmc-mppZENUCnYEw2zIhlE2y7Hlo91EgQ3JAe6q2F7nslUDEvmNDBFs0y1WhF22B4I7gthMVZvqM63h3oyzs_G9CpxsHLn0VsmXWWW6CVtBFXyqzRiDdD-P5c5YIdF2F-HM6iIDOL7T_5CUbOvtQRkln7wEW6K9QjcDd9aVZ8HULa9"
+            />
+            <div
+              class="absolute inset-0 bg-gradient-to-t from-primary via-transparent to-transparent opacity-80"
+            ></div>
+            <div class="absolute bottom-0 left-0 p-8 w-full">
+              <p
+                class="text-inverse-primary text-xs uppercase tracking-widest mb-2"
+              >
+                Editor's Choice
+              </p>
+              <h4
+                class="text-2xl font-headline font-bold text-white tracking-tight"
+              >
+                Nocturnal Textures
+              </h4>
+              <div
+                class="mt-4 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              >
+                <span class="text-xs text-emerald-200/60 font-inter"
+                  >42 Items Collected</span
+                >
+                <span
+                  class="material-symbols-outlined text-white"
+                  data-icon="arrow_forward"
+                  >arrow_forward</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- Footer -->
+      <footer
+        class="mt-24 pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center w-full gap-4 pb-12"
+      >
+        <div class="text-left">
+          <h4
+            class="font-manrope font-bold text-emerald-50 text-lg mb-1 uppercase tracking-tighter"
+          >
+            Verdant Atelier
+          </h4>
+          <p class="font-inter text-xs tracking-wide text-emerald-200/30">
+            © 2024 Verdant Atelier. Architectural Layering and Editorial
+            Precision.
+          </p>
+        </div>
+        <div class="flex gap-6">
+          <a
+            class="font-inter text-xs tracking-wide text-emerald-800/50 dark:text-emerald-200/50 hover:text-emerald-50 transition-colors"
+            href="#"
+            >Privacy Policy</a
+          >
+          <a
+            class="font-inter text-xs tracking-wide text-emerald-800/50 dark:text-emerald-200/50 hover:text-emerald-50 transition-colors"
+            href="#"
+            >Terms of Service</a
+          >
+          <a
+            class="font-inter text-xs tracking-wide text-emerald-800/50 dark:text-emerald-200/50 hover:text-emerald-50 transition-colors"
+            href="#"
+            >Sustainability Report</a
+          >
+        </div>
+      </footer>
+    </main>
+    <!-- Floating Action for Quick Add (Only shown on dashboard as per instructions) -->
+    <button
+      class="fixed bottom-8 right-8 w-16 h-16 bg-inverse-primary text-primary rounded-full shadow-2xl flex items-center justify-center hover:scale-105 transition-transform duration-200 z-50"
+    >
+      <span
+        class="material-symbols-outlined"
+        data-icon="add"
+        style="font-variation-settings: &quot;FILL&quot; 1"
+        >add</span
+      >
+    </button>
+  </body>
+</html>
