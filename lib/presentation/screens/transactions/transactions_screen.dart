@@ -18,6 +18,7 @@ import '../../../application/transaction/transaction_use_case.dart';
 import '../../../application/report/report_use_case.dart';
 import '../../providers/app_providers.dart';
 import '../dashboard/dashboard_charts.dart';
+import 'monthly_analysis.dart';
 
 // ── 카테고리 맵 Provider ──────────────────────────────────────────────────────
 final _categoryMapProvider = FutureProvider<Map<int, Category>>((ref) async {
@@ -975,6 +976,8 @@ class _SummaryPanel extends ConsumerWidget {
                     error: (e, _) => Text('오류: $e',
                         style: TextStyle(color: cs.error, fontSize: 12)),
                   ),
+                  const SizedBox(height: 28),
+                  const AnalysisCard(),
                 ],
               ),
             ),
