@@ -34,9 +34,7 @@ class DashboardScreen extends ConsumerWidget {
       backgroundColor: colorScheme.surface,
       body: GrainOverlay(
         child: RefreshIndicator(
-          color: isDark
-              ? const Color.fromARGB(255, 78, 186, 222)
-              : colorScheme.primary,
+          color: isDark ? AppTheme.incomeDark : AppTheme.incomeLight,
           displacement: 80,
           onRefresh: () async {
             ref.invalidate(dashboardSummaryProvider);
@@ -189,9 +187,6 @@ class DashboardScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.go('/transactions/new'),
-        backgroundColor: const Color.fromARGB(255, 49, 155, 194),
-        foregroundColor: const Color(0xFF003622),
-        elevation: 2,
         child: const Icon(Icons.add, size: 26),
       ),
     );
@@ -501,9 +496,7 @@ class _SummaryCard extends StatelessWidget {
     final income = summaries.fold<int>(0, (s, e) => s + e.income);
     final expense = summaries.fold<int>(0, (s, e) => s + e.expense);
     final net = income + expense;
-    final incomeColor = isDark
-        ? const Color.fromARGB(255, 78, 193, 222)
-        : const Color.fromARGB(255, 78, 210, 222);
+    final incomeColor = isDark ? AppTheme.incomeDark : AppTheme.incomeLight;
     final expenseColor = isDark ? AppTheme.expenseDark : AppTheme.expenseLight;
     final netColor = net >= 0 ? incomeColor : expenseColor;
     final cardBg = isDark ? const Color(0xFF1a3d2b) : Colors.white;
@@ -793,9 +786,7 @@ class _TxnTile extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final amountColor = isExpense
         ? (isDark ? AppTheme.expenseDark : AppTheme.expenseLight)
-        : (isDark
-            ? const Color.fromARGB(255, 111, 169, 231)
-            : const Color.fromARGB(255, 107, 159, 233));
+        : (isDark ? AppTheme.incomeDark : AppTheme.incomeLight);
     final iconBg = isDark ? const Color(0xFF0d2a1d) : const Color(0xFFF2EFE6);
 
     return InkWell(

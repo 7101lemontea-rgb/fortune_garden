@@ -1,13 +1,18 @@
 // lib/core/theme/app_theme.dart
 //
 // Fortune Garden Hybrid 테마
-//   Light (D1 Tactile Archivist 기반): 아이보리 크림 배경 + 올리브 그린 primary
+//   Light (D1 Tactile Archivist 기반): 아이보리 크림 배경 + 딥 그린 primary
 //   Dark  (D2 Verdant Atelier 기반):   딥 에메랄드 배경 + 민트 primary
 //
-// 사용:
-//   app.dart의 MaterialApp.router에 아래처럼 적용
-//     theme:     AppTheme.light,
-//     darkTheme: AppTheme.dark,
+// 색상 변경 이력 (v1.1):
+//   incomeLight  #4edea3 → #366856
+//   incomeDark   #4edea3 (유지)
+//   expenseLight #ba1a1a → #A63A3C
+//   expenseDark  #FF6B6B (유지)
+//   FAB bg       #4edea3 → #4a8f74
+//   FAB icon     #003622 → #ffffff
+//   primary(L)   #384b2c → #2d5c47
+//   primaryContainer(L) #4f6342 → #3d7a61
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,16 +20,17 @@ import 'package:google_fonts/google_fonts.dart';
 abstract final class AppTheme {
   // ── Light (D1) ────────────────────────────────────────────
   static ThemeData get light {
-    const primary = Color(0xFF384b2c);
-    const primaryContainer = Color(0xFF4f6342);
+    // primary를 incomeLight 기반 딥 그린으로 통일
+    const primary = Color(0xFF2d5c47);
+    const primaryContainer = Color(0xFF3d7a61);
     const background = Color(0xFFfcf9f0);
     const surface = Color(0xFFffffff);
     const surfaceContainer = Color(0xFFf1eee5);
     const onSurface = Color(0xFF1c1c17);
     const onSurfaceVariant = Color(0xFF44483f);
     const outlineVariant = Color(0xFFc4c8bd);
-    const incomeColor = Color(0xFF4edea3);
-    const expenseColor = Color(0xFFba1a1a);
+    const incomeColor = Color(0xFF366856); // ★ 변경
+    const expenseColor = Color(0xFFA63A3C); // ★ 변경
 
     final colorScheme = ColorScheme(
       brightness: Brightness.light,
@@ -66,15 +72,15 @@ abstract final class AppTheme {
 
   // ── Dark (D2) ─────────────────────────────────────────────
   static ThemeData get dark {
-    const primary = Color(0xFF4edea3); // 민트
+    const primary = Color(0xFF4edea3); // 민트 (유지)
     const primaryContainer = Color(0xFF004f34);
-    const background = Color(0xFF0d2a1d); // 딥 에메랄드 그린
+    const background = Color(0xFF0d2a1d);
     const surface = Color(0xFF1a3d2b);
     const surfaceContainer = Color(0xFF1a3d2b);
     const onSurface = Color(0xFFe0f2e9);
     const onSurfaceVariant = Color(0xFFa8c5b0);
     const outlineVariant = Color(0xFF1d5c3e);
-    const expenseColor = Color(0xFFFF6B6B);
+    const expenseColor = Color(0xFFFF6B6B); // 유지
 
     final colorScheme = ColorScheme(
       brightness: Brightness.dark,
@@ -118,25 +124,12 @@ abstract final class AppTheme {
   static ThemeData _buildTheme(ColorScheme colorScheme) {
     final isLight = colorScheme.brightness == Brightness.light;
 
-    // 세리프 헤드라인 텍스트스타일 (고운 바탕 적용)
-    final headlineStyle = GoogleFonts.gowunBatang(
-      fontStyle: FontStyle.italic,
-      fontWeight: FontWeight.w600, // 굵기 추가 가능
-    );
-
-    // 세리프 헤드라인 텍스트스타일
-    final headlineStyle2 = GoogleFonts.newsreader(
-      fontStyle: FontStyle.italic,
-    );
-
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: colorScheme.surfaceContainerLowest,
 
       // ── 텍스트 테마 ──────────────────────────────────────
-      // headlineSmall/Medium/Large, titleMedium/Large → Newsreader serif
-      // 나머지 → 시스템 기본 sans-serif
       textTheme: TextTheme(
         headlineLarge: GoogleFonts.newsreader(
           fontSize: 32,
@@ -253,11 +246,11 @@ abstract final class AppTheme {
       ),
 
       // ── FAB ──────────────────────────────────────────────
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: const Color(0xFF4edea3), // 민트 고정
-        foregroundColor: const Color(0xFF003622),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: Color(0xFF4a8f74), // ★ 변경
+        foregroundColor: Colors.white, // ★ 변경
         elevation: 4,
-        shape: const CircleBorder(),
+        shape: CircleBorder(),
       ),
 
       // ── SegmentedButton ──────────────────────────────────
@@ -276,13 +269,14 @@ abstract final class AppTheme {
         backgroundColor:
             isLight ? const Color(0xFFfcf9f0) : const Color(0xFF0d2a1d),
         indicatorColor: isLight
-            ? const Color(0xFF4f6342).withOpacity(0.15)
+            ? const Color(0xFF2d5c47).withOpacity(0.15) // ★ primary 동기화
             : const Color(0xFF4edea3).withOpacity(0.15),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return IconThemeData(
-              color:
-                  isLight ? const Color(0xFF384b2c) : const Color(0xFF4edea3),
+              color: isLight
+                  ? const Color(0xFF2d5c47) // ★ primary 동기화
+                  : const Color(0xFF4edea3),
             );
           }
           return IconThemeData(color: colorScheme.onSurfaceVariant);
@@ -292,8 +286,9 @@ abstract final class AppTheme {
             return TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color:
-                  isLight ? const Color(0xFF384b2c) : const Color(0xFF4edea3),
+              color: isLight
+                  ? const Color(0xFF2d5c47) // ★ primary 동기화
+                  : const Color(0xFF4edea3),
             );
           }
           return TextStyle(
@@ -308,13 +303,15 @@ abstract final class AppTheme {
         backgroundColor:
             isLight ? const Color(0xFFf6f3ea) : const Color(0xFF0d2a1d),
         selectedIconTheme: IconThemeData(
-          color: isLight ? const Color(0xFF384b2c) : const Color(0xFF4edea3),
+          color: isLight
+              ? const Color(0xFF2d5c47) // ★ primary 동기화
+              : const Color(0xFF4edea3),
         ),
         unselectedIconTheme: IconThemeData(
           color: colorScheme.onSurfaceVariant,
         ),
         indicatorColor: isLight
-            ? const Color(0xFF4f6342).withOpacity(0.12)
+            ? const Color(0xFF2d5c47).withOpacity(0.12) // ★ primary 동기화
             : const Color(0xFF4edea3).withOpacity(0.12),
       ),
     );
@@ -334,32 +331,20 @@ abstract final class AppTheme {
       };
 
   // ── 의미 색상 (차트·금액 표시용) ─────────────────────────
-  static const incomeLight = Color(0xFF4edea3);
-  static const incomeDark = Color(0xFF4edea3);
-  static const expenseLight = Color(0xFFba1a1a);
-  static const expenseDark = Color(0xFFFF6B6B);
+  static const incomeLight = Color(0xFF366856); // ★ 변경
+  static const incomeDark = Color(0xFF4edea3); // 유지
+  static const expenseLight = Color(0xFFA63A3C); // ★ 변경
+  static const expenseDark = Color(0xFFFF6B6B); // 유지
 }
 
 // ════════════════════════════════════════════════════════════
 // GrainOverlay — Scaffold body를 Stack으로 감쌀 때 사용
 // ════════════════════════════════════════════════════════════
 
-/// Scaffold의 body를 GrainOverlay로 감싸면 grain 텍스처가 적용됨.
-///
-/// 사용 예:
-/// ```dart
-/// Scaffold(
-///   body: GrainOverlay(
-///     child: YourContentWidget(),
-///   ),
-/// )
-/// ```
 class GrainOverlay extends StatelessWidget {
   const GrainOverlay({super.key, required this.child, this.opacity = 0.04});
 
   final Widget child;
-
-  /// grain 이미지 불투명도 (기본값 0.04, 권장 범위 0.03~0.05)
   final double opacity;
 
   @override
