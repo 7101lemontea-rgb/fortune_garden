@@ -13,8 +13,13 @@ import '../../../data/database/app_database.dart';
 // ════════════════════════════════════════════════════════════
 
 class DashboardDonutChart extends StatefulWidget {
-  const DashboardDonutChart({super.key, required this.data});
+  const DashboardDonutChart({
+    super.key,
+    required this.data,
+    this.isExpense = true, // ★ v1.4: false이면 수입 도넛
+  });
   final List<CategoryExpense> data;
+  final bool isExpense;
 
   @override
   State<DashboardDonutChart> createState() => _DashboardDonutChartState();
@@ -55,7 +60,9 @@ class _DashboardDonutChartState extends State<DashboardDonutChart> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (slices.isEmpty) {
-      return const _ChartEmpty(message: '이번 달 지출 내역이 없습니다');
+      return _ChartEmpty(
+        message: widget.isExpense ? '이번 달 지출 내역이 없습니다' : '이번 달 수입 내역이 없습니다',
+      );
     }
 
     final total = slices.fold<int>(0, (s, e) => s + e.totalExpense);
@@ -66,7 +73,10 @@ class _DashboardDonutChartState extends State<DashboardDonutChart> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _ChartTitle(icon: Icons.donut_large_outlined, title: '카테고리별 지출'),
+        _ChartTitle(
+          icon: Icons.donut_large_outlined,
+          title: widget.isExpense ? '카테고리별 지출' : '카테고리별 수입',
+        ),
         const SizedBox(height: 16),
         SizedBox(
           height: 210,
@@ -127,7 +137,7 @@ class _DashboardDonutChartState extends State<DashboardDonutChart> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            '총 지출',
+                            widget.isExpense ? '총 지출' : '총 수입',
                             style: TextStyle(
                               fontSize: 10,
                               color: colorScheme.outline,
@@ -140,9 +150,13 @@ class _DashboardDonutChartState extends State<DashboardDonutChart> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: isDark
-                                  ? AppTheme.expenseDark
-                                  : AppTheme.expenseLight,
+                              color: widget.isExpense
+                                  ? (isDark
+                                      ? AppTheme.expenseDark
+                                      : AppTheme.expenseLight)
+                                  : (isDark
+                                      ? AppTheme.incomeDark
+                                      : AppTheme.incomeLight),
                             ),
                           ),
                         ],

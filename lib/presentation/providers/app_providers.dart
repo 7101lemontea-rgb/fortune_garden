@@ -199,8 +199,45 @@ final monthlyTrendProvider =
 });
 
 // ─────────────────────────────────────────────────────────
-// csvImportStateProvider
+// reportCategoryExpensesProvider  — 리포트 전용 (수입/지출 분리)
 // ─────────────────────────────────────────────────────────
+
+final reportCategoryExpenseParamProvider =
+    StateProvider<bool>((ref) => true); // true = 지출, false = 수입
+
+final reportCategoryExpensesProvider =
+    FutureProvider.autoDispose<List<CategoryExpense>>((ref) async {
+  final viewMode = await ref.watch(viewModeProvider.future);
+  final activeProfile = await ref.watch(activeProfileProvider.future);
+  final db = ref.read(appDatabaseProvider);
+  final selected = ref.watch(selectedMonthProvider);
+  final isExpense = ref.watch(reportCategoryExpenseParamProvider);
+
+  return db.getCategoryExpenses(
+    monthStart: selected.monthStartMs,
+    monthEnd: selected.monthEndMs,
+    profileId: viewMode == ViewMode.personal ? activeProfile?.id : null,
+    isExpense: isExpense,
+  );
+});
+
+// ─────────────────────────────────────────────────────────
+// reportSummaryProvider  — 리포트 전용 월별 요약
+// ─────────────────────────────────────────────────────────
+
+final reportSummaryProvider =
+    FutureProvider.autoDispose<List<MonthlySummary>>((ref) async {
+  final viewMode = await ref.watch(viewModeProvider.future);
+  final activeProfile = await ref.watch(activeProfileProvider.future);
+  final selected = ref.watch(selectedMonthProvider);
+
+  return ref.read(reportUseCaseProvider).getMonthlySummary(
+        year: selected.year,
+        month: selected.month,
+        viewMode: viewMode,
+        activeProfileId: activeProfile?.id,
+      );
+});
 
 final csvImportStateProvider =
     NotifierProvider<CsvImportNotifier, ImportState>(CsvImportNotifier.new);

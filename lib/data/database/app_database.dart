@@ -234,17 +234,20 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
-  // ── 6.7 카테고리별 지출 합계 ★ v1.3 신규 ──────────────────
-  /// DonutChart용. [monthStart]~[monthEnd] 기간의 카테고리별 지출 합계.
+  // ── 6.7 카테고리별 지출/수입 합계 ★ v1.3 신규 / v1.4 수정 ─
+  /// DonutChart용. [monthStart]~[monthEnd] 기간의 카테고리별 합계.
+  /// [isExpense]가 true(기본값)이면 지출(amount < 0), false이면 수입(amount > 0).
   /// [profileId]가 null이면 전체 프로필 합산.
   /// 미분류 거래는 '미분류' 항목으로 합산.
   Future<List<CategoryExpense>> getCategoryExpenses({
     required int monthStart,
     required int monthEnd,
     int? profileId,
+    bool isExpense = true, // ★ v1.4 신규
   }) async {
     final profileFilter =
         profileId != null ? 'AND t.profile_id = $profileId' : '';
+    final amountFilter = isExpense ? 't.amount < 0' : 't.amount > 0';
 
     final rows = await customSelect(
       '''
@@ -255,7 +258,7 @@ class AppDatabase extends _$AppDatabase {
         ABS(SUM(t.amount))              AS total_expense
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
-      WHERE t.amount < 0
+      WHERE $amountFilter
         AND t.txn_date >= :monthStart
         AND t.txn_date  < :monthEnd
         $profileFilter
