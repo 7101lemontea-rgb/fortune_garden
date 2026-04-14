@@ -303,7 +303,7 @@ class _DonutDetail extends StatelessWidget {
           item.categoryName,
           style: GoogleFonts.newsreader(
             fontSize: 16,
-            fontStyle: FontStyle.italic,
+            // fontStyle: FontStyle.italic,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
@@ -536,7 +536,7 @@ class _ChartTitle extends StatelessWidget {
           style: GoogleFonts.newsreader(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            fontStyle: FontStyle.italic,
+            // fontStyle: FontStyle.italic,
             color: colorScheme.onSurface,
           ),
         ),

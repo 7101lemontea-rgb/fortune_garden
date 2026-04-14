@@ -37,10 +37,10 @@ class ReportScreen extends ConsumerWidget {
                   isDark ? const Color(0xFF051a0f) : const Color(0xFF2d4a22),
               title: Text(
                 '리포트',
-                style: GoogleFonts.newsreader(
+                style: GoogleFonts.gowunBatang(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
-                  fontStyle: FontStyle.italic,
+                  // fontStyle: FontStyle.italic,
                   color: Colors.white,
                 ),
               ),
@@ -170,10 +170,10 @@ class _MonthNavigator extends StatelessWidget {
         Text(
           DateFormat('yyyy년 M월', 'ko_KR')
               .format(DateTime(selected.year, selected.month)),
-          style: GoogleFonts.newsreader(
+          style: GoogleFonts.gowunBatang(
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            fontStyle: FontStyle.italic,
+            // fontStyle: FontStyle.italic,
             color: colorScheme.onSurface,
           ),
         ),
@@ -366,10 +366,15 @@ class _CategorySectionState extends ConsumerState<_CategorySection>
             child: TabBar(
               controller: _tabController,
               dividerColor: Colors.transparent,
+              isScrollable: true, // ← 추가: 탭이 콘텐츠 너비에 맞게 축소
+              tabAlignment: TabAlignment.center,
               indicator: BoxDecoration(
                 color: colorScheme.primary.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
+              indicatorSize: TabBarIndicatorSize.tab, // 탭 전체 배경 채우기
+              labelPadding:
+                  const EdgeInsets.symmetric(horizontal: 200, vertical: 0),
               labelColor: colorScheme.primary,
               unselectedLabelColor: colorScheme.onSurfaceVariant,
               labelStyle: const TextStyle(
@@ -381,8 +386,8 @@ class _CategorySectionState extends ConsumerState<_CategorySection>
                 fontWeight: FontWeight.w400,
               ),
               tabs: const [
-                Tab(text: '지출'),
-                Tab(text: '수입'),
+                Tab(text: '지출', height: 32), // ← height 추가
+                Tab(text: '수입', height: 32),
               ],
             ),
           ),

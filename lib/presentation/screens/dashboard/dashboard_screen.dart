@@ -143,7 +143,7 @@ class DashboardScreen extends ConsumerWidget {
                                 style: GoogleFonts.gowunBatang(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
-                                  fontStyle: FontStyle.italic,
+                                  // fontStyle: FontStyle.italic,
                                   color: colorScheme.onSurface,
                                 ),
                               ),
