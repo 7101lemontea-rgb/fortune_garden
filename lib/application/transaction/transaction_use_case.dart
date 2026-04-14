@@ -26,8 +26,7 @@ class TransactionUseCase {
       _transactionRepo.getList(filter);
 
   /// id로 특정 거래 반환.
-  Future<Transaction?> getById(int id) =>
-      _transactionRepo.getById(id);
+  Future<Transaction?> getById(int id) => _transactionRepo.getById(id);
 
   /// 거래 수동 입력 또는 수정.
   /// SAD v1.1 §5.3 수동 거래 입력 흐름.
@@ -47,33 +46,36 @@ class TransactionUseCase {
     final hash = 'manual_${profileId}_${txnDate}_${amount}_$merchant';
 
     return _transactionRepo.upsert(TransactionsCompanion(
-      id:           id != null ? Value(id) : const Value.absent(),
-      profileId:    Value(profileId),
-      accountId:    Value(accountId),
-      txnHash:      Value(hash),
-      txnDate:      Value(txnDate),
-      amount:       Value(amount),
-      merchant:     Value(merchant),
-      categoryId:   Value(categoryId),
-      memo:         Value(memo),
+      id: id != null ? Value(id) : const Value.absent(),
+      profileId: Value(profileId),
+      accountId: Value(accountId),
+      txnHash: Value(hash),
+      txnDate: Value(txnDate),
+      amount: Value(amount),
+      merchant: Value(merchant),
+      categoryId: Value(categoryId),
+      memo: Value(memo),
       balanceAfter: Value(balanceAfter),
-      isManual:     Value(isManual ? 1 : 0),
-      createdAt:    Value(DateTime.now().millisecondsSinceEpoch),
+      isManual: Value(isManual ? 1 : 0),
+      createdAt: Value(DateTime.now().millisecondsSinceEpoch),
     ));
   }
 
   /// 거래 삭제.
   Future<void> delete(int id) => _transactionRepo.delete(id);
 
-  /// 거래 카테고리 또는 메모 수정.
+  /// 거래 카테고리·메모·거래처명 수정.
+  /// CSV 거래에서 금액·날짜·계좌는 유지하고 나머지 메타만 변경할 때 사용.
   Future<void> updateMeta({
     required int id,
+    String? merchant,
     int? categoryId,
     String? memo,
   }) =>
       _transactionRepo.upsert(TransactionsCompanion(
-        id:         Value(id),
+        id: Value(id),
+        merchant: merchant != null ? Value(merchant) : const Value.absent(),
         categoryId: Value(categoryId),
-        memo:       Value(memo),
+        memo: Value(memo),
       ));
 }

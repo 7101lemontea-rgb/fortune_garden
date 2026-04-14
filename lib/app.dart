@@ -1,6 +1,7 @@
 // lib/app.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_initializer.dart';
@@ -9,6 +10,18 @@ import 'presentation/providers/pin_notifier.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/router/app_router.dart';
 import 'presentation/screens/pin/pin_screen.dart';
+
+// 공통 localization 설정
+const _localizationsDelegates = [
+  GlobalMaterialLocalizations.delegate,
+  GlobalWidgetsLocalizations.delegate,
+  GlobalCupertinoLocalizations.delegate,
+];
+
+const _supportedLocales = [
+  Locale('ko', 'KR'),
+  Locale('en', 'US'),
+];
 
 class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
@@ -48,6 +61,8 @@ class _MyAppState extends ConsumerState<MyApp> {
     if (!_initialized) {
       return const MaterialApp(
         debugShowCheckedModeBanner: false,
+        localizationsDelegates: _localizationsDelegates,
+        supportedLocales: _supportedLocales,
         home: Scaffold(
           body: Center(child: CircularProgressIndicator()),
         ),
@@ -65,6 +80,8 @@ class _MyAppState extends ConsumerState<MyApp> {
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: themeMode,
+        localizationsDelegates: _localizationsDelegates,
+        supportedLocales: _supportedLocales,
         home: PinScreen(mode: PinScreenMode.unlock),
       );
     }
@@ -75,6 +92,8 @@ class _MyAppState extends ConsumerState<MyApp> {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
+      localizationsDelegates: _localizationsDelegates,
+      supportedLocales: _supportedLocales,
       routerConfig: router,
     );
   }

@@ -2,6 +2,10 @@
 //
 // SAD v1.1 §4.1.2 — go_router 기반 라우팅.
 // 앱 시작 시 프로필 존재 여부에 따라 /setup 또는 /dashboard로 분기.
+//
+// ※ 주의: 하위 라우트에서 정적 경로('new')는 동적 경로(':id')보다
+//         반드시 먼저 선언해야 합니다. 순서가 바뀌면 go_router가
+//         'new'를 id로 파싱하여 FormatException이 발생합니다.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,17 +60,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/transactions',
             builder: (_, __) => const TransactionsScreen(),
             routes: [
+              // SCR-005 — 수동 거래 입력
+              // ※ 정적 경로 'new'를 동적 경로 ':id' 보다 먼저 선언
+              GoRoute(
+                path: 'new',
+                builder: (_, __) => const TransactionNewScreen(),
+              ),
               // SCR-004 — 거래 상세/수정
               GoRoute(
                 path: ':id',
                 builder: (_, state) => TransactionDetailScreen(
                   id: int.parse(state.pathParameters['id']!),
                 ),
-              ),
-              // SCR-005 — 수동 거래 입력
-              GoRoute(
-                path: 'new',
-                builder: (_, __) => const TransactionNewScreen(),
               ),
             ],
           ),

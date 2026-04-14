@@ -414,7 +414,7 @@ class _TxnListColumn extends ConsumerWidget {
                       expenseColor: expenseColor,
                       incomeColor: incomeColor,
                       showDivider: !isLast && !nextIsHeader,
-                      onTap: () => context.push('/transactions/\${txn.id}'),
+                      onTap: () => context.push('/transactions/${txn.id}'),
                       onDelete: () => onDelete(txn.id),
                     );
                   },
@@ -671,7 +671,7 @@ class _TxnScrollView extends ConsumerWidget {
                       expenseColor: expenseColor,
                       incomeColor: incomeColor,
                       showDivider: !isLast && !nextIsHeader,
-                      onTap: () => context.push('/transactions/\${txn.id}'),
+                      onTap: () => context.push('/transactions/${txn.id}'),
                       onDelete: () => onDelete(txn.id),
                     );
                   },
