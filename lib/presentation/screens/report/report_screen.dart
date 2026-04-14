@@ -11,6 +11,7 @@ import '../../../domain/entities/view_mode.dart';
 import '../../../application/report/report_use_case.dart';
 import '../../providers/app_providers.dart';
 import '../dashboard/dashboard_charts.dart';
+import '../transactions/monthly_analysis.dart';
 
 class ReportScreen extends ConsumerWidget {
   const ReportScreen({super.key});
@@ -76,6 +77,10 @@ class ReportScreen extends ConsumerWidget {
                         loading: () => const _CardSkeleton(height: 120),
                         error: (e, _) => _ErrorCard(message: '$e'),
                       ),
+                  const SizedBox(height: 16),
+
+                  // ── 분석 카드 ────────────────────────────
+                  _ChartCard(child: const AnalysisCard()),
                   const SizedBox(height: 16),
 
                   // ── 카테고리 탭 (도넛 + 목록) ────────────
@@ -374,7 +379,7 @@ class _CategorySectionState extends ConsumerState<_CategorySection>
               ),
               indicatorSize: TabBarIndicatorSize.tab, // 탭 전체 배경 채우기
               labelPadding:
-                  const EdgeInsets.symmetric(horizontal: 200, vertical: 0),
+                  const EdgeInsets.symmetric(horizontal: 240, vertical: 0),
               labelColor: colorScheme.primary,
               unselectedLabelColor: colorScheme.onSurfaceVariant,
               labelStyle: const TextStyle(
@@ -386,7 +391,7 @@ class _CategorySectionState extends ConsumerState<_CategorySection>
                 fontWeight: FontWeight.w400,
               ),
               tabs: const [
-                Tab(text: '지출', height: 32), // ← height 추가
+                Tab(text: '지출', height: 32),
                 Tab(text: '수입', height: 32),
               ],
             ),

@@ -17,6 +17,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/database/app_database.dart';
+import '../../../domain/entities/view_mode.dart';
 import '../../../domain/repositories/transaction_filter.dart';
 import '../../../application/transaction/transaction_use_case.dart';
 import '../../providers/app_providers.dart';
@@ -31,12 +32,15 @@ const _flexibleCategoryIds = {1, 3, 5, 6};
 // 전달 거래 목록 Provider
 // ─────────────────────────────────────────────────────────
 final _prevMonthTransactionListProvider =
-    FutureProvider.autoDispose<List<Transaction>>((ref) {
+    FutureProvider.autoDispose<List<Transaction>>((ref) async {
   final selected = ref.watch(selectedMonthProvider);
   final prev = selected.prev;
+  final viewMode = await ref.watch(viewModeProvider.future);
+  final activeProfile = await ref.watch(activeProfileProvider.future);
   final filter = TransactionFilter(
     fromDate: prev.monthStartMs,
     toDate: prev.monthEndMs,
+    profileId: viewMode == ViewMode.personal ? activeProfile?.id : null,
     limit: 500,
   );
   return ref.read(transactionUseCaseProvider).getList(filter);
@@ -110,11 +114,16 @@ class MonthlyAnalysis {
 final monthlyAnalysisProvider =
     FutureProvider.autoDispose<MonthlyAnalysis?>((ref) async {
   final selected = ref.watch(selectedMonthProvider);
+  final viewMode = await ref.watch(viewModeProvider.future);
+  final activeProfile = await ref.watch(activeProfileProvider.future);
+  final profileId = viewMode == ViewMode.personal ? activeProfile?.id : null;
+
   final thisList = await ref.watch(
     FutureProvider.autoDispose<List<Transaction>>((ref) {
       final filter = TransactionFilter(
         fromDate: selected.monthStartMs,
         toDate: selected.monthEndMs,
+        profileId: profileId,
         limit: 500,
       );
       return ref.read(transactionUseCaseProvider).getList(filter);

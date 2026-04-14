@@ -8,18 +8,20 @@
 //   - 계좌 등록/수정 폼 (BottomSheet)
 //   - 계좌 삭제 (확인 다이얼로그)
 
-import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:convert';
 
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../data/database/app_database.dart';
-import '../../../data/repositories/repository_providers.dart';
 import '../../../data/database/database_provider.dart';
+import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/repositories/i_account_repository.dart';
 import '../../../domain/repositories/i_import_history_repository.dart';
 
@@ -33,7 +35,7 @@ final _allAccountsProvider =
   final accountRepo = ref.read(accountRepositoryProvider);
 
   final profiles = await profileRepo.getAll();
-  final result   = <_ProfileAccounts>[];
+  final result = <_ProfileAccounts>[];
 
   for (final p in profiles) {
     final accounts = await accountRepo.getByProfile(p.id);
@@ -44,8 +46,8 @@ final _allAccountsProvider =
 
 class _ProfileAccounts {
   const _ProfileAccounts({required this.profile, required this.accounts});
-  final Profile        profile;
-  final List<Account>  accounts;
+  final Profile profile;
+  final List<Account> accounts;
 }
 
 // ─────────────────────────────────────────────────────────
@@ -55,53 +57,84 @@ class _ProfileAccounts {
 class AccountsScreen extends ConsumerWidget {
   const AccountsScreen({super.key});
 
+  // 헤더 배경색 상수
+  static const _headerBgLight = Color(0xFF2d4a22);
+  static const _headerBgDark = Color(0xFF051a0f);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final allAsync = ref.watch(_allAccountsProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final headerBg = isDark ? _headerBgDark : _headerBgLight;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('계좌 관리')),
-      body: allAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error:   (e, _) => Center(child: Text('오류: $e')),
-        data: (groups) {
-          // 전체 계좌 목록 (잔액 합산용)
-          final allAccounts = groups
-              .expand((g) => g.accounts)
-              .toList();
-
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // ── 잔액 요약 카드 ──
-              if (allAccounts.isNotEmpty)
-                _BalanceSummary(accounts: allAccounts),
-              const SizedBox(height: 16),
-
-              // ── 프로필별 계좌 목록 ──
-              ...groups.map((g) => _ProfileSection(
-                group: g,
-                onAdded: () => ref.invalidate(_allAccountsProvider),
-                onChanged: () => ref.invalidate(_allAccountsProvider),
-              )),
-
-              // ── 계좌 없음 안내 ──
-              if (allAccounts.isEmpty)
-                _EmptyGuide(
-                  onAdd: () => _showAddSheet(context, ref, groups),
+      body: GrainOverlay(
+        child: CustomScrollView(
+          slivers: [
+            // ── SliverAppBar (다크 그린 헤더) ──────────────
+            SliverAppBar(
+              pinned: true,
+              backgroundColor: headerBg,
+              foregroundColor: Colors.white,
+              title: Text(
+                '계좌 관리',
+                style: GoogleFonts.gowunBatang(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  // fontStyle: FontStyle.italic,
+                  color: Colors.white,
                 ),
-            ],
-          );
-        },
-      ),
-      floatingActionButton: allAsync.when(
-        data: (groups) => FloatingActionButton.extended(
-          onPressed: () => _showAddSheet(context, ref, groups),
-          icon: const Icon(Icons.add),
-          label: const Text('계좌 등록'),
+              ),
+            ),
+
+            // ── 본문 ────────────────────────────────────────
+            allAsync.when(
+              loading: () => const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) => SliverFillRemaining(
+                child: Center(child: Text('오류: $e')),
+              ),
+              data: (groups) {
+                final allAccounts = groups.expand((g) => g.accounts).toList();
+
+                if (allAccounts.isEmpty) {
+                  return SliverFillRemaining(
+                    child: _EmptyGuide(
+                      onAdd: () => _showAddSheet(context, ref, groups),
+                    ),
+                  );
+                }
+
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      // 잔액 요약 카드
+                      _BalanceSummary(accounts: allAccounts),
+                      const SizedBox(height: 20),
+
+                      // 프로필별 계좌 목록
+                      ...groups.map((g) => _ProfileSection(
+                            group: g,
+                            onAdded: () => ref.invalidate(_allAccountsProvider),
+                            onChanged: () =>
+                                ref.invalidate(_allAccountsProvider),
+                          )),
+                    ]),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
-        loading: () => null,
-        error:   (_, __) => null,
+      ),
+      floatingActionButton: allAsync.maybeWhen(
+        data: (groups) => FloatingActionButton(
+          onPressed: () => _showAddSheet(context, ref, groups),
+          child: const Icon(Icons.add),
+        ),
+        orElse: () => null,
       ),
     );
   }
@@ -115,8 +148,12 @@ class AccountsScreen extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => _AccountFormSheet(
-        groups:    groups,
+        groups: groups,
         onSaved: () => ref.invalidate(_allAccountsProvider),
       ),
     );
@@ -134,33 +171,65 @@ class _BalanceSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = accounts.fold<int>(0, (sum, a) => sum + a.balance);
-    final fmt   = NumberFormat('#,###', 'ko_KR');
+    final fmt = NumberFormat('#,###', 'ko_KR');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final incomeColor = isDark ? AppTheme.incomeDark : AppTheme.incomeLight;
+    final cs = Theme.of(context).colorScheme;
 
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Row(
           children: [
-            const Icon(Icons.account_balance_wallet_outlined,
-                size: 32, color: Colors.green),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('전체 잔액',
-                    style: Theme.of(context).textTheme.labelSmall),
-                const SizedBox(height: 4),
-                Text(
-                  '${fmt.format(total)}원',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ],
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: incomeColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.account_balance_wallet_outlined,
+                size: 24,
+                color: incomeColor,
+              ),
             ),
-            const Spacer(),
-            Text('${accounts.length}개 계좌',
-                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '전체 잔액',
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelMedium
+                        ?.copyWith(color: cs.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${fmt.format(total)}원',
+                    style: GoogleFonts.gowunBatang(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      // fontStyle: FontStyle.italic,
+                      color: incomeColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${accounts.length}개 계좌',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ),
           ],
         ),
       ),
@@ -180,30 +249,44 @@ class _ProfileSection extends ConsumerWidget {
   });
 
   final _ProfileAccounts group;
-  final VoidCallback     onAdded;
-  final VoidCallback     onChanged;
+  final VoidCallback onAdded;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final color = Color(int.parse(
-        'FF${group.profile.colorHex.replaceAll('#', '')}', radix: 16));
+        'FF${group.profile.colorHex.replaceAll('#', '')}',
+        radix: 16));
+    final cs = Theme.of(context).colorScheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 프로필 헤더
+        // 프로필 섹션 헤더
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.only(bottom: 10),
           child: Row(
             children: [
-              CircleAvatar(backgroundColor: color, radius: 8),
-              const SizedBox(width: 8),
+              CircleAvatar(
+                backgroundColor: color,
+                radius: 9,
+                child: CircleAvatar(
+                  backgroundColor: color.withOpacity(0.3),
+                  radius: 4,
+                ),
+              ),
+              const SizedBox(width: 10),
               Text(
                 group.profile.name,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: cs.onSurface,
+                    ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${group.accounts.length}개',
+                style: Theme.of(context).textTheme.labelSmall,
               ),
             ],
           ),
@@ -212,20 +295,25 @@ class _ProfileSection extends ConsumerWidget {
         // 계좌 없음
         if (group.accounts.isEmpty)
           Padding(
-            padding: const EdgeInsets.only(left: 24, bottom: 12),
-            child: Text('등록된 계좌가 없습니다',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+            padding: const EdgeInsets.only(left: 28, bottom: 16),
+            child: Text(
+              '등록된 계좌가 없습니다',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: cs.onSurfaceVariant),
+            ),
           ),
 
         // 계좌 목록
         ...group.accounts.map((a) => _AccountTile(
-          account: a,
-          profile: group.profile,
-          group:   group,
-          onChanged: onChanged,
-        )),
+              account: a,
+              profile: group.profile,
+              group: group,
+              onChanged: onChanged,
+            )),
 
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
       ],
     );
   }
@@ -243,39 +331,91 @@ class _AccountTile extends ConsumerWidget {
     required this.onChanged,
   });
 
-  final Account          account;
-  final Profile          profile;
+  final Account account;
+  final Profile profile;
   final _ProfileAccounts group;
-  final VoidCallback     onChanged;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fmt = NumberFormat('#,###', 'ko_KR');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final incomeColor = isDark ? AppTheme.incomeDark : AppTheme.incomeLight;
+    final cs = Theme.of(context).colorScheme;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: const Icon(Icons.credit_card_outlined),
-        title: Text(account.alias ?? account.institutionCode),
-        subtitle: Text(account.institutionCode),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '${fmt.format(account.balance)}원',
-              style: const TextStyle(
-                  fontWeight: FontWeight.w600, fontSize: 13),
-            ),
-            if (account.lastSyncedAt != null)
-              Text(
-                _formatDate(account.lastSyncedAt!),
-                style: TextStyle(
-                    fontSize: 11, color: Colors.grey.shade500),
-              ),
-          ],
-        ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
         onTap: () => _showOptions(context, ref),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              // 기관 아이콘 영역
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.credit_card_outlined,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+
+              // 계좌명 + 기관명
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      account.alias ?? account.institutionCode,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      account.institutionCode,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+
+              // 잔액 + 최종 동기화
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${fmt.format(account.balance)}원',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: incomeColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  if (account.lastSyncedAt != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatDate(account.lastSyncedAt!),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ],
+                ],
+              ),
+
+              // 더보기 아이콘
+              const SizedBox(width: 8),
+              Icon(
+                Icons.more_vert,
+                size: 18,
+                color: cs.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -286,12 +426,47 @@ class _AccountTile extends ConsumerWidget {
   }
 
   void _showOptions(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final expenseColor = isDark ? AppTheme.expenseDark : AppTheme.expenseLight;
+
     showModalBottomSheet(
       context: context,
+      backgroundColor: cs.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // 핸들
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: cs.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            // 계좌명 헤더
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.credit_card_outlined, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    account.alias ?? account.institutionCode,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 16, color: cs.outlineVariant.withOpacity(0.4)),
             ListTile(
               leading: const Icon(Icons.upload_file_outlined),
               title: const Text('CSV 가져오기'),
@@ -310,15 +485,20 @@ class _AccountTile extends ConsumerWidget {
             ),
             ListTile(
               leading: const Icon(Icons.edit_outlined),
-              title: const Text('수정'),
+              title: const Text('계좌 수정'),
               onTap: () {
                 Navigator.pop(context);
                 showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
                   useSafeArea: true,
+                  backgroundColor: cs.surface,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
                   builder: (_) => _AccountFormSheet(
-                    groups:   [group],
+                    groups: [group],
                     existing: account,
                     onSaved: onChanged,
                   ),
@@ -326,13 +506,14 @@ class _AccountTile extends ConsumerWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('삭제', style: TextStyle(color: Colors.red)),
+              leading: Icon(Icons.delete_outline, color: expenseColor),
+              title: Text('계좌 삭제', style: TextStyle(color: expenseColor)),
               onTap: () {
                 Navigator.pop(context);
                 _confirmDelete(context, ref);
               },
             ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -344,11 +525,18 @@ class _AccountTile extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => _ImportHistorySheet(accountId: account.id),
     );
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final expenseColor = isDark ? AppTheme.expenseDark : AppTheme.expenseLight;
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -364,7 +552,7 @@ class _AccountTile extends ConsumerWidget {
             child: const Text('취소'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: expenseColor),
             onPressed: () async {
               Navigator.pop(context);
               await ref.read(accountRepositoryProvider).delete(account.id);
@@ -390,8 +578,8 @@ class _AccountFormSheet extends ConsumerStatefulWidget {
   });
 
   final List<_ProfileAccounts> groups;
-  final Account?               existing;  // null = 신규 등록
-  final VoidCallback           onSaved;
+  final Account? existing; // null = 신규 등록
+  final VoidCallback onSaved;
 
   @override
   ConsumerState<_AccountFormSheet> createState() => _AccountFormSheetState();
@@ -399,14 +587,12 @@ class _AccountFormSheet extends ConsumerStatefulWidget {
 
 class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
   final _aliasCtrl = TextEditingController();
-  late int    _selectedProfileId;
-  String?     _selectedInstitutionCode;
-  bool        _saving = false;
+  late int _selectedProfileId;
+  String? _selectedInstitutionCode;
+  bool _saving = false;
 
-  // 기관 목록 (institutions 테이블에서 로드)
   List<Institution> _institutions = [];
 
-  // 기관 유형별 그룹
   static const _typeLabels = {
     'bank': '은행',
     'card': '카드',
@@ -416,15 +602,13 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
   @override
   void initState() {
     super.initState();
-    // 수정 모드 초기값
     if (widget.existing != null) {
-      _aliasCtrl.text          = widget.existing!.alias ?? '';
-      _selectedProfileId       = widget.existing!.profileId;
+      _aliasCtrl.text = widget.existing!.alias ?? '';
+      _selectedProfileId = widget.existing!.profileId;
       _selectedInstitutionCode = widget.existing!.institutionCode;
     } else {
-      _selectedProfileId = widget.groups.isNotEmpty
-          ? widget.groups.first.profile.id
-          : 1;
+      _selectedProfileId =
+          widget.groups.isNotEmpty ? widget.groups.first.profile.id : 1;
     }
     _loadInstitutions();
   }
@@ -436,8 +620,7 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
   }
 
   Future<void> _loadInstitutions() async {
-    final list = await ref
-        .read(activeInstitutionsProvider.future);
+    final list = await ref.read(activeInstitutionsProvider.future);
     if (mounted) setState(() => _institutions = list);
   }
 
@@ -446,25 +629,25 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
     setState(() => _saving = true);
 
     // 계좌번호 암호화 placeholder
-    // 실제 운영 시: flutter_secure_storage + encrypt로 AES-256-GCM 처리
     final encBytes = Uint8List.fromList(
-      utf8.encode('DEV:${_selectedInstitutionCode}_${DateTime.now().millisecondsSinceEpoch}'),
+      utf8.encode(
+          'DEV:${_selectedInstitutionCode}_${DateTime.now().millisecondsSinceEpoch}'),
     );
 
     await ref.read(accountRepositoryProvider).upsert(
-      AccountsCompanion(
-        id: widget.existing != null
-            ? Value(widget.existing!.id)
-            : const Value.absent(),
-        profileId:        Value(_selectedProfileId),
-        institutionCode:  Value(_selectedInstitutionCode!),
-        accountNumberEnc: Value(encBytes),
-        alias: Value(
-          _aliasCtrl.text.trim().isEmpty ? null : _aliasCtrl.text.trim(),
-        ),
-        balance:          const Value(0),
-      ),
-    );
+          AccountsCompanion(
+            id: widget.existing != null
+                ? Value(widget.existing!.id)
+                : const Value.absent(),
+            profileId: Value(_selectedProfileId),
+            institutionCode: Value(_selectedInstitutionCode!),
+            accountNumberEnc: Value(encBytes),
+            alias: Value(
+              _aliasCtrl.text.trim().isEmpty ? null : _aliasCtrl.text.trim(),
+            ),
+            balance: const Value(0),
+          ),
+        );
 
     widget.onSaved();
     if (mounted) Navigator.pop(context);
@@ -473,17 +656,31 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
+    final cs = Theme.of(context).colorScheme;
 
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // 핸들
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: cs.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
             // 헤더
             Row(
               children: [
@@ -503,25 +700,24 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
             // 프로필 선택 (수정 시 비활성)
             DropdownButtonFormField<int>(
               value: _selectedProfileId,
-              decoration: const InputDecoration(
-                labelText: '프로필',
-                border: OutlineInputBorder(),
-              ),
-              items: widget.groups.map((g) => DropdownMenuItem(
-                value: g.profile.id,
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: Color(int.parse(
-                          'FF${g.profile.colorHex.replaceAll('#', '')}',
-                          radix: 16)),
-                      radius: 8,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(g.profile.name),
-                  ],
-                ),
-              )).toList(),
+              decoration: const InputDecoration(labelText: '프로필'),
+              items: widget.groups
+                  .map((g) => DropdownMenuItem(
+                        value: g.profile.id,
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: Color(int.parse(
+                                  'FF${g.profile.colorHex.replaceAll('#', '')}',
+                                  radix: 16)),
+                              radius: 8,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(g.profile.name),
+                          ],
+                        ),
+                      ))
+                  .toList(),
               onChanged: isEdit
                   ? null
                   : (v) => setState(() => _selectedProfileId = v!),
@@ -531,10 +727,7 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
             // 금융기관 선택
             DropdownButtonFormField<String>(
               value: _selectedInstitutionCode,
-              decoration: const InputDecoration(
-                labelText: '금융기관 *',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: '금융기관 *'),
               hint: const Text('기관을 선택하세요'),
               isExpanded: true,
               items: _buildInstitutionItems(),
@@ -550,13 +743,15 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
               decoration: const InputDecoration(
                 labelText: '계좌 별명 (선택)',
                 hintText: '예: KB 급여통장',
-                border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               '별명을 입력하지 않으면 기관명으로 표시됩니다.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 24),
 
@@ -569,9 +764,11 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
                     : _save,
                 child: _saving
                     ? const SizedBox(
-                        width: 20, height: 20,
+                        width: 20,
+                        height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
+                            strokeWidth: 2, color: Colors.white),
+                      )
                     : Text(isEdit ? '수정 완료' : '등록'),
               ),
             ),
@@ -585,33 +782,31 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
     final items = <DropdownMenuItem<String>>[];
 
     for (final type in ['bank', 'card', 'stock']) {
-      final filtered = _institutions
-          .where((i) => i.type == type)
-          .toList();
+      final filtered = _institutions.where((i) => i.type == type).toList();
       if (filtered.isEmpty) continue;
 
-      // 유형 구분 헤더
+      // 유형 구분 헤더 (비활성)
       items.add(DropdownMenuItem(
         enabled: false,
-        value:   '__header_$type',
+        value: '__header_$type',
         child: Text(
           _typeLabels[type] ?? type,
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
-            color: Colors.grey.shade600,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ));
 
       // 기관 목록
       items.addAll(filtered.map((i) => DropdownMenuItem(
-        value: i.code,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 8),
-          child: Text(i.name),
-        ),
-      )));
+            value: i.code,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Text(i.name),
+            ),
+          )));
     }
 
     return items;
@@ -628,6 +823,8 @@ class _ImportHistorySheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.6,
@@ -639,19 +836,19 @@ class _ImportHistorySheet extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Container(
-              width: 40, height: 4,
+              width: 36,
+              height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: cs.outlineVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.fromLTRB(20, 0, 8, 0),
             child: Row(
               children: [
-                Text('가져오기 이력',
-                    style: Theme.of(context).textTheme.titleMedium),
+                Text('가져오기 이력', style: Theme.of(context).textTheme.titleMedium),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -660,7 +857,7 @@ class _ImportHistorySheet extends ConsumerWidget {
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: cs.outlineVariant.withOpacity(0.4)),
           Expanded(
             child: FutureBuilder<List<ImportHistoryEntry>>(
               future: ref
@@ -672,18 +869,23 @@ class _ImportHistorySheet extends ConsumerWidget {
                 }
                 final history = snap.data!;
                 if (history.isEmpty) {
-                  return const Center(
-                    child: Text('가져오기 이력이 없습니다',
-                        style: TextStyle(color: Colors.grey)),
+                  return Center(
+                    child: Text(
+                      '가져오기 이력이 없습니다',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: cs.onSurfaceVariant),
+                    ),
                   );
                 }
                 return ListView.separated(
                   controller: controller,
                   padding: const EdgeInsets.all(16),
                   itemCount: history.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (ctx, i) =>
-                      _HistoryTile(entry: history[i]),
+                  separatorBuilder: (_, __) => Divider(
+                      height: 1, color: cs.outlineVariant.withOpacity(0.4)),
+                  itemBuilder: (ctx, i) => _HistoryTile(entry: history[i]),
                 );
               },
             ),
@@ -700,29 +902,38 @@ class _HistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dt  = DateTime.fromMillisecondsSinceEpoch(entry.importedAt);
+    final dt = DateTime.fromMillisecondsSinceEpoch(entry.importedAt);
     final fmt = DateFormat('yyyy.MM.dd HH:mm', 'ko_KR');
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final incomeColor = isDark ? AppTheme.incomeDark : AppTheme.incomeLight;
+    final expenseColor = isDark ? AppTheme.expenseDark : AppTheme.expenseLight;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.upload_file_outlined,
-              size: 20, color: Colors.grey),
+          Icon(Icons.upload_file_outlined,
+              size: 20, color: cs.onSurfaceVariant),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(entry.fileName,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  entry.fileName,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 4),
-                Text(fmt.format(dt),
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade600)),
+                Text(
+                  fmt.format(dt),
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
               ],
             ),
           ),
@@ -730,14 +941,14 @@ class _HistoryTile extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              _Chip('신규 ${entry.newRows}건', Colors.green),
+              _StatusChip('신규 ${entry.newRows}건', incomeColor),
               if (entry.duplicateRows > 0) ...[
-                const SizedBox(height: 2),
-                _Chip('중복 ${entry.duplicateRows}건', Colors.grey),
+                const SizedBox(height: 3),
+                _StatusChip('중복 ${entry.duplicateRows}건', cs.onSurfaceVariant),
               ],
               if (entry.errorRows > 0) ...[
-                const SizedBox(height: 2),
-                _Chip('오류 ${entry.errorRows}건', Colors.red),
+                const SizedBox(height: 3),
+                _StatusChip('오류 ${entry.errorRows}건', expenseColor),
               ],
             ],
           ),
@@ -747,22 +958,28 @@ class _HistoryTile extends StatelessWidget {
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip(this.label, this.color);
+class _StatusChip extends StatelessWidget {
+  const _StatusChip(this.label, this.color);
   final String label;
-  final Color  color;
+  final Color color;
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-    decoration: BoxDecoration(
-      color: color.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(4),
-    ),
-    child: Text(label,
-        style: TextStyle(
-            fontSize: 11, color: color, fontWeight: FontWeight.w500)),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: color.withOpacity(0.25), width: 1),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
 }
 
 // ─────────────────────────────────────────────────────────
@@ -774,32 +991,51 @@ class _EmptyGuide extends StatelessWidget {
   final VoidCallback onAdd;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.credit_card_outlined,
-              size: 56, color: Colors.grey),
-          const SizedBox(height: 16),
-          const Text('등록된 계좌가 없습니다',
-              style:
-                  TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-          const SizedBox(height: 8),
-          const Text(
-            'CSV 파일을 가져오려면 먼저 계좌를 등록해주세요.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add),
-            label: const Text('계좌 등록'),
-          ),
-        ],
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(
+                Icons.credit_card_outlined,
+                size: 36,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              '등록된 계좌가 없습니다',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'CSV 파일을 가져오려면\n먼저 계좌를 등록해주세요.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: cs.onSurfaceVariant),
+            ),
+            const SizedBox(height: 28),
+            FilledButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add),
+              label: const Text('계좌 등록'),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
