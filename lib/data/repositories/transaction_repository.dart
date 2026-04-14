@@ -50,8 +50,7 @@ class TransactionRepository implements ITransactionRepository {
 
   @override
   Future<Transaction?> getById(int id) =>
-      (_db.select(_db.transactions)
-            ..where((t) => t.id.equals(id)))
+      (_db.select(_db.transactions)..where((t) => t.id.equals(id)))
           .getSingleOrNull();
 
   @override
@@ -59,10 +58,23 @@ class TransactionRepository implements ITransactionRepository {
       _db.insertTransactionIfNotExists(companion);
 
   @override
+  Future<void> updateMeta({
+    required int id,
+    String? merchant,
+    int? categoryId,
+    String? memo,
+  }) =>
+      (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(
+        TransactionsCompanion(
+          merchant: merchant != null ? Value(merchant) : const Value.absent(),
+          categoryId: Value(categoryId),
+          memo: Value(memo),
+        ),
+      );
+
+  @override
   Future<void> delete(int id) =>
-      (_db.delete(_db.transactions)
-            ..where((t) => t.id.equals(id)))
-          .go();
+      (_db.delete(_db.transactions)..where((t) => t.id.equals(id))).go();
 
   @override
   Future<bool> existsByHash(String txnHash) async {

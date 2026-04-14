@@ -72,10 +72,10 @@ class TransactionUseCase {
     int? categoryId,
     String? memo,
   }) =>
-      _transactionRepo.upsert(TransactionsCompanion(
-        id: Value(id),
-        merchant: merchant != null ? Value(merchant) : const Value.absent(),
-        categoryId: Value(categoryId),
-        memo: Value(memo),
-      ));
+      _transactionRepo.updateMeta(
+        id: id,
+        merchant: merchant,
+        categoryId: categoryId,
+        memo: memo,
+      );
 }

@@ -16,6 +16,15 @@ abstract interface class ITransactionRepository {
   /// txnHash UNIQUE 제약으로 중복 자동 무시.
   Future<void> upsert(TransactionsCompanion companion);
 
+  /// 거래 카테고리·메모·거래처명만 부분 업데이트.
+  /// CSV 거래에서 금액·날짜·계좌 원본을 유지할 때 사용.
+  Future<void> updateMeta({
+    required int id,
+    String? merchant,
+    int? categoryId,
+    String? memo,
+  });
+
   /// 거래 삭제.
   Future<void> delete(int id);
 
