@@ -134,19 +134,19 @@ abstract final class AppTheme {
         headlineLarge: GoogleFonts.newsreader(
           fontSize: 32,
           fontWeight: FontWeight.w600,
-          fontStyle: FontStyle.italic,
+          // fontStyle: FontStyle.italic,
           color: colorScheme.onSurface,
         ),
         headlineMedium: GoogleFonts.newsreader(
           fontSize: 28,
           fontWeight: FontWeight.w600,
-          fontStyle: FontStyle.italic,
+          // fontStyle: FontStyle.italic,
           color: colorScheme.onSurface,
         ),
         headlineSmall: GoogleFonts.newsreader(
           fontSize: 24,
           fontWeight: FontWeight.w500,
-          fontStyle: FontStyle.italic,
+          // fontStyle: FontStyle.italic,
           color: colorScheme.onSurface,
         ),
         titleLarge: GoogleFonts.newsreader(
@@ -203,7 +203,7 @@ abstract final class AppTheme {
         titleTextStyle: GoogleFonts.newsreader(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          fontStyle: FontStyle.italic,
+          // fontStyle: FontStyle.italic,
           color: colorScheme.primary,
         ),
       ),

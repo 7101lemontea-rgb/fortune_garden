@@ -5,10 +5,23 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../providers/category_rule_providers.dart';
+
+// ── 헤더 배경색 (로컬 상수) ───────────────────────────────
+const _headerBgLight = Color(0xFF2d4a22);
+const _headerBgDark = Color(0xFF051a0f);
+
+// ── 색상 헬퍼 ─────────────────────────────────────────────
+Color _hexToColor(String hex) =>
+    Color(int.parse('FF${hex.replaceAll('#', '')}', radix: 16));
+
+String _colorToHex(Color color) =>
+    '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
 
 class CategoriesScreen extends ConsumerStatefulWidget {
   const CategoriesScreen({super.key});
@@ -35,23 +48,50 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isLight = theme.brightness == Brightness.light;
+    final headerBg = isLight ? _headerBgLight : _headerBgDark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('카테고리 설정'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: '카테고리'),
-            Tab(text: '자동 분류 규칙'),
+      body: GrainOverlay(
+        child: NestedScrollView(
+          headerSliverBuilder: (context, _) => [
+            SliverAppBar(
+              pinned: true,
+              expandedHeight: 100,
+              backgroundColor: headerBg,
+              foregroundColor: Colors.white,
+              flexibleSpace: FlexibleSpaceBar(
+                titlePadding: const EdgeInsets.only(left: 20, bottom: 52),
+                title: Text(
+                  '카테고리 설정',
+                  style: GoogleFonts.gowunBatang(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              bottom: TabBar(
+                controller: _tabController,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white60,
+                indicatorColor: Colors.white,
+                tabs: const [
+                  Tab(text: '카테고리'),
+                  Tab(text: '자동 분류 규칙'),
+                ],
+              ),
+            ),
           ],
+          body: TabBarView(
+            controller: _tabController,
+            children: const [
+              _CategoryListTab(),
+              _RuleListTab(),
+            ],
+          ),
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          _CategoryListTab(),
-          _RuleListTab(),
-        ],
       ),
       floatingActionButton: ListenableBuilder(
         listenable: _tabController,
@@ -79,48 +119,133 @@ class _CategoryListTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final catsAsync = ref.watch(allCategoriesProvider);
+    final theme = Theme.of(context);
 
     return catsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('오류: $e')),
       data: (cats) {
-        if (cats.isEmpty) return const Center(child: Text('카테고리가 없습니다'));
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: cats.length,
-          itemBuilder: (ctx, i) {
-            final c = cats[i];
-            final color = c.colorHex != null
-                ? Color(int.parse('FF${c.colorHex!.replaceAll('#', '')}',
-                    radix: 16))
-                : Theme.of(context).colorScheme.primary;
+        if (cats.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.category_outlined,
+                    size: 64, color: theme.colorScheme.outlineVariant),
+                const SizedBox(height: 16),
+                Text('카테고리가 없습니다', style: theme.textTheme.titleMedium),
+              ],
+            ),
+          );
+        }
 
-            return ListTile(
-              onTap: () => _showCategoryForm(context, ref, category: c),
-              leading: CircleAvatar(
-                backgroundColor: color.withOpacity(0.2),
-                radius: 20,
-                child: Icon(Icons.circle, color: color, size: 14),
+        // 기본(isCustom==0) / 커스텀(isCustom==1) 분리
+        final defaults = cats.where((c) => c.isCustom == 0).toList();
+        final customs = cats.where((c) => c.isCustom == 1).toList();
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+          children: [
+            _SectionHeader(label: '기본 카테고리 (${defaults.length})'),
+            const SizedBox(height: 8),
+            Card(
+              child: Column(
+                children: defaults.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final c = entry.value;
+                  return Column(
+                    children: [
+                      _CategoryTile(
+                        category: c,
+                        onTap: () =>
+                            _showCategoryForm(context, ref, category: c),
+                      ),
+                      if (i < defaults.length - 1)
+                        Divider(
+                          height: 1,
+                          indent: 56,
+                          color:
+                              theme.colorScheme.outlineVariant.withOpacity(0.3),
+                        ),
+                    ],
+                  );
+                }).toList(),
               ),
-              title: Text(c.name),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (c.isCustom == 1)
-                    _Badge(
-                      label: '커스텀',
-                      color: Theme.of(context).colorScheme.secondaryContainer,
-                      textColor:
-                          Theme.of(context).colorScheme.onSecondaryContainer,
-                    ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.chevron_right, size: 18),
-                ],
+            ),
+            if (customs.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              _SectionHeader(label: '커스텀 카테고리 (${customs.length})'),
+              const SizedBox(height: 8),
+              Card(
+                child: Column(
+                  children: customs.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final c = entry.value;
+                    return Column(
+                      children: [
+                        _CategoryTile(
+                          category: c,
+                          onTap: () =>
+                              _showCategoryForm(context, ref, category: c),
+                        ),
+                        if (i < customs.length - 1)
+                          Divider(
+                            height: 1,
+                            indent: 56,
+                            color: theme.colorScheme.outlineVariant
+                                .withOpacity(0.3),
+                          ),
+                      ],
+                    );
+                  }).toList(),
+                ),
               ),
-            );
-          },
+            ],
+          ],
         );
       },
+    );
+  }
+}
+
+class _CategoryTile extends StatelessWidget {
+  const _CategoryTile({required this.category, required this.onTap});
+  final Category category;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = category.colorHex != null
+        ? _hexToColor(category.colorHex!)
+        : theme.colorScheme.primary;
+
+    return ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: CircleAvatar(
+        backgroundColor: color.withOpacity(0.18),
+        radius: 20,
+        child: Icon(Icons.circle, color: color, size: 14),
+      ),
+      title: Text(
+        category.name,
+        style: theme.textTheme.bodyLarge,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (category.isCustom == 1)
+            _Badge(
+              label: '커스텀',
+              color: theme.colorScheme.secondaryContainer,
+              textColor: theme.colorScheme.onSecondaryContainer,
+            ),
+          const SizedBox(width: 4),
+          Icon(Icons.chevron_right,
+              size: 18, color: theme.colorScheme.outlineVariant),
+        ],
+      ),
     );
   }
 }
@@ -147,8 +272,10 @@ class _RuleListTab extends ConsumerWidget {
             ? {for (final c in catsAsync.value!) c.id: c}
             : <int, Category>{};
 
-        return ListView.builder(
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
           itemCount: rules.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (ctx, i) {
             final rule = rules[i];
             final cat = catMap[rule.categoryId];
@@ -177,7 +304,7 @@ void _showCategoryForm(BuildContext context, WidgetRef ref,
     isScrollControlled: true,
     useSafeArea: true,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
     builder: (_) => _CategoryFormSheet(category: category, ref: ref),
   );
@@ -199,8 +326,6 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
   bool _saving = false;
 
   bool get _isEdit => widget.category != null;
-
-  // 커스텀 카테고리(isCustom == 1)만 삭제 가능
   bool get _isDeletable => _isEdit && widget.category!.isCustom == 1;
 
   @override
@@ -208,9 +333,8 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
     super.initState();
     final c = widget.category;
     _nameCtrl = TextEditingController(text: c?.name ?? '');
-    _pickedColor = c?.colorHex != null
-        ? Color(int.parse('FF${c!.colorHex!.replaceAll('#', '')}', radix: 16))
-        : Colors.blue;
+    _pickedColor =
+        c?.colorHex != null ? _hexToColor(c!.colorHex!) : Colors.blue;
   }
 
   @override
@@ -219,33 +343,24 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
     super.dispose();
   }
 
-  String _colorToHex(Color color) =>
-      '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
-
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-
     try {
       final companion = CategoriesCompanion(
         id: _isEdit ? Value(widget.category!.id) : const Value.absent(),
         name: Value(_nameCtrl.text.trim()),
         colorHex: Value(_colorToHex(_pickedColor)),
         icon: _isEdit ? Value(widget.category!.icon) : const Value.absent(),
-        isCustom: _isEdit
-            ? Value(widget.category!.isCustom)
-            : const Value(1), // 신규는 항상 커스텀
+        isCustom: _isEdit ? Value(widget.category!.isCustom) : const Value(1),
       );
-
       await ref.read(categoryRepositoryProvider).upsert(companion);
       ref.invalidate(allCategoriesProvider);
-
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장 실패: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('저장 실패: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -274,7 +389,6 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
       ),
     );
     if (confirmed != true) return;
-
     try {
       await ref.read(categoryRepositoryProvider).delete(widget.category!.id);
       ref.invalidate(allCategoriesProvider);
@@ -282,15 +396,15 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('삭제 실패: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return SingleChildScrollView(
@@ -301,18 +415,31 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // ── 핸들 ──────────────────────────────────────────
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
             // ── 헤더 ──────────────────────────────────────────
             Row(
               children: [
                 Text(
                   _isEdit ? '카테고리 수정' : '카테고리 추가',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: theme.textTheme.titleLarge,
                 ),
                 const Spacer(),
                 if (_isDeletable)
                   IconButton(
                     icon: Icon(Icons.delete_outline,
-                        color: Theme.of(context).colorScheme.error),
+                        color: theme.colorScheme.error),
                     tooltip: '삭제',
                     onPressed: _delete,
                   ),
@@ -330,30 +457,25 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
               decoration: const InputDecoration(
                 labelText: '카테고리 이름 *',
                 hintText: '예: 식비, 교통비',
+                prefixIcon: Icon(Icons.label_outline),
               ),
               textInputAction: TextInputAction.done,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return '이름을 입력해주세요';
-                return null;
-              },
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? '이름을 입력해주세요' : null,
             ),
             const SizedBox(height: 20),
 
             // ── 색상 미리보기 ──────────────────────────────────
             Row(
               children: [
-                Text('색상', style: Theme.of(context).textTheme.labelLarge),
+                Text('색상', style: theme.textTheme.labelLarge),
                 const SizedBox(width: 12),
-                CircleAvatar(
-                  backgroundColor: _pickedColor,
-                  radius: 14,
-                ),
+                CircleAvatar(backgroundColor: _pickedColor, radius: 14),
                 const SizedBox(width: 8),
                 Text(
                   _colorToHex(_pickedColor),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.outline),
                 ),
               ],
             ),
@@ -373,10 +495,9 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
               showColorName: false,
               showColorCode: true,
               colorCodeHasColor: true,
-              subheading:
-                  Text('색조 선택', style: Theme.of(context).textTheme.bodySmall),
+              subheading: Text('색조 선택', style: theme.textTheme.bodySmall),
               wheelSubheading:
-                  Text('색상 및 밝기', style: Theme.of(context).textTheme.bodySmall),
+                  Text('색상 및 밝기', style: theme.textTheme.bodySmall),
               pickersEnabled: const {
                 ColorPickerType.primary: true,
                 ColorPickerType.accent: false,
@@ -399,20 +520,19 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
                   : Text(_isEdit ? '수정 완료' : '카테고리 추가'),
             ),
 
-            // ── 기본 카테고리 삭제 불가 안내 ──────────────────
+            // ── 기본 카테고리 안내 ─────────────────────────────
             if (_isEdit && !_isDeletable) ...[
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.info_outline,
-                      size: 14, color: Theme.of(context).colorScheme.outline),
+                      size: 14, color: theme.colorScheme.outline),
                   const SizedBox(width: 4),
                   Text(
                     '기본 카테고리는 삭제할 수 없습니다',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline),
                   ),
                 ],
               ),
@@ -433,22 +553,21 @@ class _EmptyRulesPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.rule_outlined,
-              size: 64, color: Theme.of(context).colorScheme.outlineVariant),
+              size: 64, color: theme.colorScheme.outlineVariant),
           const SizedBox(height: 16),
-          Text('자동 분류 규칙이 없습니다',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text('자동 분류 규칙이 없습니다', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
             '+ 버튼을 눌러 규칙을 추가하세요.\n거래처명 키워드가 일치하면 자동으로 카테고리가 분류됩니다.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.outline),
           ),
         ],
       ),
@@ -473,9 +592,10 @@ class _RuleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final color = categoryColor != null
-        ? Color(int.parse('FF${categoryColor!.replaceAll('#', '')}', radix: 16))
-        : Theme.of(context).colorScheme.primary;
+        ? _hexToColor(categoryColor!)
+        : theme.colorScheme.primary;
 
     return Dismissible(
       key: ValueKey(rule.id),
@@ -483,9 +603,12 @@ class _RuleTile extends StatelessWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        color: Theme.of(context).colorScheme.errorContainer,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.errorContainer,
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: Icon(Icons.delete_outline,
-            color: Theme.of(context).colorScheme.onErrorContainer),
+            color: theme.colorScheme.onErrorContainer),
       ),
       confirmDismiss: (_) async {
         return await showDialog<bool>(
@@ -505,41 +628,49 @@ class _RuleTile extends StatelessWidget {
         );
       },
       onDismissed: (_) => onDelete(),
-      child: ListTile(
-        onTap: onEdit,
-        leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.2),
-          radius: 20,
-          child: Icon(Icons.rule, color: color, size: 18),
-        ),
-        title: Text(rule.keyword,
-            style: const TextStyle(fontWeight: FontWeight.w500)),
-        subtitle: Row(
-          children: [
-            _ColorDot(color: color),
-            const SizedBox(width: 4),
-            Text(categoryName),
-            const SizedBox(width: 8),
-            if (rule.profileId == null)
-              _Badge(
-                label: '공용',
-                color: Theme.of(context).colorScheme.secondaryContainer,
-                textColor: Theme.of(context).colorScheme.onSecondaryContainer,
-              ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (rule.priority > 0)
-              _Badge(
-                label: 'P${rule.priority}',
-                color: Theme.of(context).colorScheme.tertiaryContainer,
-                textColor: Theme.of(context).colorScheme.onTertiaryContainer,
-              ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, size: 18),
-          ],
+      child: Card(
+        child: ListTile(
+          onTap: onEdit,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          leading: CircleAvatar(
+            backgroundColor: color.withOpacity(0.18),
+            radius: 20,
+            child: Icon(Icons.rule, color: color, size: 18),
+          ),
+          title: Text(
+            rule.keyword,
+            style: theme.textTheme.bodyLarge
+                ?.copyWith(fontWeight: FontWeight.w500),
+          ),
+          subtitle: Row(
+            children: [
+              _ColorDot(color: color),
+              const SizedBox(width: 4),
+              Text(categoryName, style: theme.textTheme.bodySmall),
+              const SizedBox(width: 8),
+              if (rule.profileId == null)
+                _Badge(
+                  label: '공용',
+                  color: theme.colorScheme.secondaryContainer,
+                  textColor: theme.colorScheme.onSecondaryContainer,
+                ),
+            ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (rule.priority > 0)
+                _Badge(
+                  label: 'P${rule.priority}',
+                  color: theme.colorScheme.tertiaryContainer,
+                  textColor: theme.colorScheme.onTertiaryContainer,
+                ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right,
+                  size: 18, color: theme.colorScheme.outlineVariant),
+            ],
+          ),
         ),
       ),
     );
@@ -552,7 +683,7 @@ void _showRuleForm(BuildContext context, WidgetRef ref, {CategoryRule? rule}) {
     isScrollControlled: true,
     useSafeArea: true,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
     builder: (_) => _RuleFormSheet(rule: rule, ref: ref),
   );
@@ -616,9 +747,8 @@ class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장 실패: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('저장 실패: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -627,6 +757,7 @@ class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final catsAsync = ref.watch(allCategoriesProvider);
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
@@ -638,10 +769,24 @@ class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // ── 핸들 ──────────────────────────────────────────
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            // ── 헤더 ──────────────────────────────────────────
             Row(
               children: [
                 Text(_isEdit ? '규칙 수정' : '규칙 추가',
-                    style: Theme.of(context).textTheme.titleLarge),
+                    style: theme.textTheme.titleLarge),
                 const Spacer(),
                 IconButton(
                     icon: const Icon(Icons.close),
@@ -649,18 +794,21 @@ class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
               ],
             ),
             const SizedBox(height: 20),
+
             TextFormField(
               controller: _keywordCtrl,
               decoration: const InputDecoration(
                 labelText: '거래처명 키워드 *',
                 hintText: '예: 스타벅스, 편의점, GS25',
                 helperText: '거래처명에 이 키워드가 포함되면 자동 분류됩니다',
+                prefixIcon: Icon(Icons.search),
               ),
               textInputAction: TextInputAction.next,
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? '키워드를 입력해주세요' : null,
             ),
             const SizedBox(height: 16),
+
             catsAsync.when(
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text('카테고리 로드 실패: $e'),
@@ -672,11 +820,7 @@ class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
                           value: c.id,
                           child: Row(children: [
                             if (c.colorHex != null)
-                              _ColorDot(
-                                color: Color(int.parse(
-                                    'FF${c.colorHex!.replaceAll('#', '')}',
-                                    radix: 16)),
-                              ),
+                              _ColorDot(color: _hexToColor(c.colorHex!)),
                             const SizedBox(width: 8),
                             Text(c.name),
                           ]),
@@ -687,6 +831,7 @@ class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
               ),
             ),
             const SizedBox(height: 16),
+
             SegmentedButton<int?>(
               segments: const [
                 ButtonSegment(value: null, label: Text('공용')),
@@ -700,16 +845,17 @@ class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
             const SizedBox(height: 4),
             Text(
               '공용: 두 프로필 모두 적용  /  개인: 해당 프로필만 적용',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.outline),
             ),
             const SizedBox(height: 16),
+
             TextFormField(
               controller: _priorityCtrl,
               decoration: const InputDecoration(
                 labelText: '우선순위',
                 helperText: '숫자가 높을수록 먼저 적용됩니다 (기본값 0)',
+                prefixIcon: Icon(Icons.low_priority),
               ),
               keyboardType: TextInputType.number,
               validator: (v) {
@@ -719,6 +865,7 @@ class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
               },
             ),
             const SizedBox(height: 24),
+
             FilledButton(
               onPressed: _saving ? null : _save,
               child: _saving
@@ -753,6 +900,26 @@ Future<void> _deleteRule(
 // 공용 소형 위젯
 // ════════════════════════════════════════════════════════════
 
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        label,
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.outline,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+}
+
 class _ColorDot extends StatelessWidget {
   const _ColorDot({required this.color});
   final Color color;
@@ -777,6 +944,8 @@ class _Badge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration:
             BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
-        child: Text(label, style: TextStyle(fontSize: 11, color: textColor)),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 11, color: textColor, fontWeight: FontWeight.w500)),
       );
 }

@@ -116,6 +116,7 @@ class AppDatabase extends _$AppDatabase {
         beforeOpen: (details) async {
           await customStatement('PRAGMA journal_mode=WAL');
           await customStatement('PRAGMA foreign_keys=ON');
+          await _seedCategories();
         },
       );
 
@@ -437,8 +438,32 @@ class AppDatabase extends _$AppDatabase {
           icon: const Value('more_horiz'),
           colorHex: const Value('#D3D3D3'),
           isCustom: const Value(0)),
+      CategoriesCompanion.insert(
+          name: '외식',
+          icon: const Value('dining'),
+          colorHex: const Value('#FF8C69'),
+          isCustom: const Value(0)),
+      CategoriesCompanion.insert(
+          name: '카페/간식',
+          icon: const Value('local_cafe'),
+          colorHex: const Value('#C8A882'),
+          isCustom: const Value(0)),
+      CategoriesCompanion.insert(
+          name: '주거',
+          icon: const Value('home'),
+          colorHex: const Value('#7EB5A6'),
+          isCustom: const Value(0)),
+      CategoriesCompanion.insert(
+          name: '잡화',
+          icon: const Value('shopping_cart'),
+          colorHex: const Value('#B5A8D5'),
+          isCustom: const Value(0)),
     ];
-    await batch((b) => b.insertAllOnConflictUpdate(categories, cats));
+    await batch((b) => b.insertAll(
+          categories,
+          cats,
+          mode: InsertMode.insertOrIgnore,
+        ));
   }
 
   Future<void> _seedAppSettings() async {
