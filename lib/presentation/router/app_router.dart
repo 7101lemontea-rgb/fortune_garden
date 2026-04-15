@@ -29,6 +29,8 @@ import '../shell/app_shell.dart';
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/dashboard',
+    // 임시 변경
+    // initialLocation: '/setup',
     redirect: (context, state) async {
       // SAD v1.1 §5.1 — 프로필 0개 → /setup, 1개 이상 → /dashboard
       final activeProfile = await ref.read(activeProfileProvider.future);
