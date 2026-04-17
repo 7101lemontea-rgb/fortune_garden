@@ -26,4 +26,8 @@ abstract interface class ICategoryRepository {
 
   /// 분류 규칙 삭제.
   Future<void> deleteRule(int id);
+
+  /// 규칙 목록의 우선순위를 orderedIds 순서에 맞게 일괄 업데이트.
+  /// orderedIds[0]이 가장 높은 우선순위(length-1), 마지막이 0.
+  Future<void> reorderRules(List<int> orderedIds);
 }

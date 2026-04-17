@@ -11,14 +11,12 @@ class CategoryRepository implements ICategoryRepository {
 
   @override
   Future<List<Category>> getAll() =>
-      (_db.select(_db.categories)
-            ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+      (_db.select(_db.categories)..orderBy([(t) => OrderingTerm.asc(t.id)]))
           .get();
 
   @override
   Future<Category?> getById(int id) =>
-      (_db.select(_db.categories)
-            ..where((t) => t.id.equals(id)))
+      (_db.select(_db.categories)..where((t) => t.id.equals(id)))
           .getSingleOrNull();
 
   @override
@@ -31,14 +29,11 @@ class CategoryRepository implements ICategoryRepository {
     //   상위 카테고리 삭제 전 하위 카테고리의 parentId를 NULL로 초기화.
     return _db.transaction(() async {
       // 하위 카테고리 parentId → NULL
-      await (_db.update(_db.categories)
-            ..where((t) => t.parentId.equals(id)))
+      await (_db.update(_db.categories)..where((t) => t.parentId.equals(id)))
           .write(const CategoriesCompanion(parentId: Value(null)));
 
       // 카테고리 삭제 (transactions.category_id는 DB FK SET NULL 처리)
-      await (_db.delete(_db.categories)
-            ..where((t) => t.id.equals(id)))
-          .go();
+      await (_db.delete(_db.categories)..where((t) => t.id.equals(id))).go();
     });
   }
 
@@ -48,8 +43,7 @@ class CategoryRepository implements ICategoryRepository {
 
     if (profileId != null) {
       // 해당 프로필 규칙 + 공용 규칙(NULL) 모두 반환
-      query.where((t) =>
-          t.profileId.equals(profileId) | t.profileId.isNull());
+      query.where((t) => t.profileId.equals(profileId) | t.profileId.isNull());
     }
 
     query.orderBy([
@@ -65,7 +59,19 @@ class CategoryRepository implements ICategoryRepository {
 
   @override
   Future<void> deleteRule(int id) =>
-      (_db.delete(_db.categoryRules)
-            ..where((t) => t.id.equals(id)))
-          .go();
+      (_db.delete(_db.categoryRules)..where((t) => t.id.equals(id))).go();
+
+  @override
+  Future<void> reorderRules(List<int> orderedIds) {
+    // orderedIds[0]이 최상위 → priority = (length - 1)
+    // orderedIds[last]가 최하위 → priority = 0
+    return _db.transaction(() async {
+      for (var i = 0; i < orderedIds.length; i++) {
+        final priority = orderedIds.length - 1 - i;
+        await (_db.update(_db.categoryRules)
+              ..where((t) => t.id.equals(orderedIds[i])))
+            .write(CategoryRulesCompanion(priority: Value(priority)));
+      }
+    });
+  }
 }

@@ -197,6 +197,7 @@ class _CategoryListTab extends ConsumerWidget {
           );
         }
 
+        // 기본(isCustom==0) / 커스텀(isCustom==1) 분리
         final defaults = cats.where((c) => c.isCustom == 0).toList();
         final customs = cats.where((c) => c.isCustom == 1).toList();
 
@@ -283,7 +284,6 @@ class _CategoryTile extends StatelessWidget {
       leading: CircleAvatar(
         backgroundColor: color.withOpacity(0.18),
         radius: 20,
-        // 저장된 아이콘 이름으로 실제 아이콘 표시
         child: Icon(_iconFromName(category.icon), color: color, size: 18),
       ),
       title: Text(
@@ -309,45 +309,170 @@ class _CategoryTile extends StatelessWidget {
 }
 
 // ════════════════════════════════════════════════════════════
-// 탭 2 — 자동 분류 규칙 목록
+// 탭 2 — 자동 분류 규칙 목록 (드래그 정렬)
 // ════════════════════════════════════════════════════════════
 
-class _RuleListTab extends ConsumerWidget {
+class _RuleListTab extends ConsumerStatefulWidget {
   const _RuleListTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_RuleListTab> createState() => _RuleListTabState();
+}
+
+class _RuleListTabState extends ConsumerState<_RuleListTab> {
+  // 드래그 중 로컬 순서를 유지하기 위한 상태
+  List<CategoryRule>? _localRules;
+  bool _reordering = false;
+
+  @override
+  Widget build(BuildContext context) {
     final rulesAsync = ref.watch(categoryRulesProvider);
     final catsAsync = ref.watch(allCategoriesProvider);
+    final theme = Theme.of(context);
 
     return rulesAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('오류: $e')),
       data: (rules) {
-        if (rules.isEmpty) return const _EmptyRulesPlaceholder();
+        // provider가 갱신되면 로컬 상태도 동기화 (단, 드래그 중이 아닐 때만)
+        if (!_reordering) {
+          _localRules = List.of(rules);
+        }
+
+        final displayRules = _localRules ?? rules;
+
+        if (displayRules.isEmpty) return const _EmptyRulesPlaceholder();
 
         final catMap = catsAsync.valueOrNull != null
             ? {for (final c in catsAsync.value!) c.id: c}
             : <int, Category>{};
 
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-          itemCount: rules.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (ctx, i) {
-            final rule = rules[i];
-            final cat = catMap[rule.categoryId];
-            return _RuleTile(
-              rule: rule,
-              categoryName: cat?.name ?? '(알 수 없음)',
-              categoryColor: cat?.colorHex,
-              onEdit: () => _showRuleForm(context, ref, rule: rule),
-              onDelete: () => _deleteRule(context, ref, rule),
-            );
-          },
+        return Column(
+          children: [
+            // ── 안내 배너 ──────────────────────────────────────
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.drag_indicator,
+                      size: 16, color: theme.colorScheme.onSecondaryContainer),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '위아래로 드래그하여 우선순위를 조정하세요. 위에 있을수록 먼저 적용됩니다.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // ── 규칙 목록 (드래그 정렬) ────────────────────────
+            Expanded(
+              child: ReorderableListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                itemCount: displayRules.length,
+                onReorderStart: (_) => setState(() => _reordering = true),
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    if (newIndex > oldIndex) newIndex--;
+                    final item = _localRules!.removeAt(oldIndex);
+                    _localRules!.insert(newIndex, item);
+                  });
+                  // DB에 새 순서 저장
+                  _saveOrder(displayRules);
+                },
+                onReorderEnd: (_) => setState(() => _reordering = false),
+                proxyDecorator: (child, index, animation) {
+                  return AnimatedBuilder(
+                    animation: animation,
+                    builder: (_, child) => Material(
+                      elevation: 6,
+                      borderRadius: BorderRadius.circular(16),
+                      shadowColor: theme.colorScheme.shadow.withOpacity(0.3),
+                      child: child,
+                    ),
+                    child: child,
+                  );
+                },
+                itemBuilder: (ctx, i) {
+                  final rule = displayRules[i];
+                  final cat = catMap[rule.categoryId];
+                  return Padding(
+                    key: ValueKey(rule.id),
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _RuleTile(
+                      rule: rule,
+                      rank: i + 1,
+                      total: displayRules.length,
+                      categoryName: cat?.name ?? '(알 수 없음)',
+                      categoryColor: cat?.colorHex,
+                      onEdit: () => _showRuleForm(context, ref, rule: rule),
+                      onDelete: () => _confirmDelete(context, ref, rule),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         );
       },
     );
+  }
+
+  Future<void> _saveOrder(List<CategoryRule> ordered) async {
+    try {
+      await ref
+          .read(categoryRepositoryProvider)
+          .reorderRules(ordered.map((r) => r.id).toList());
+      ref.invalidate(categoryRulesProvider);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('순서 저장 실패: $e')));
+      }
+    }
+  }
+
+  Future<void> _confirmDelete(
+      BuildContext context, WidgetRef ref, CategoryRule rule) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('규칙 삭제'),
+        content: Text('"${rule.keyword}" 규칙을 삭제할까요?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('취소')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(categoryRepositoryProvider).deleteRule(rule.id);
+      ref.invalidate(categoryRulesProvider);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
+      }
+    }
   }
 }
 
@@ -534,7 +659,6 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
               children: [
                 Text('아이콘', style: theme.textTheme.labelLarge),
                 const SizedBox(width: 12),
-                // 현재 선택된 아이콘 미리보기
                 CircleAvatar(
                   backgroundColor: _pickedColor.withOpacity(0.18),
                   radius: 20,
@@ -654,8 +778,366 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
 }
 
 // ════════════════════════════════════════════════════════════
-// 아이콘 선택 그리드
+// 규칙 관련 위젯
 // ════════════════════════════════════════════════════════════
+
+class _EmptyRulesPlaceholder extends StatelessWidget {
+  const _EmptyRulesPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.rule_outlined,
+              size: 64, color: theme.colorScheme.outlineVariant),
+          const SizedBox(height: 16),
+          Text('자동 분류 규칙이 없습니다', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            '+ 버튼을 눌러 규칙을 추가하세요.\n거래처명 키워드가 일치하면 자동으로 카테고리가 분류됩니다.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.outline),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RuleTile extends StatelessWidget {
+  const _RuleTile({
+    required this.rule,
+    required this.rank,
+    required this.total,
+    required this.categoryName,
+    this.categoryColor,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final CategoryRule rule;
+  final int rank; // 현재 표시 순위 (1 = 최상위)
+  final int total; // 전체 규칙 수
+  final String categoryName;
+  final String? categoryColor;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = categoryColor != null
+        ? _hexToColor(categoryColor!)
+        : theme.colorScheme.primary;
+
+    return Card(
+      child: ListTile(
+        onTap: onEdit,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        // ── 순위 배지 + 드래그 핸들 ────────────────────────────
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 드래그 핸들 (ReorderableListView가 인식)
+            const Icon(Icons.drag_handle, size: 20),
+            const SizedBox(width: 8),
+            // 순위 원형 배지
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$rank',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ),
+          ],
+        ),
+        title: Text(
+          rule.keyword,
+          style:
+              theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+        ),
+        subtitle: Row(
+          children: [
+            _ColorDot(color: color),
+            const SizedBox(width: 4),
+            Text(categoryName, style: theme.textTheme.bodySmall),
+            const SizedBox(width: 8),
+            if (rule.profileId == null)
+              _Badge(
+                label: '공용',
+                color: theme.colorScheme.secondaryContainer,
+                textColor: theme.colorScheme.onSecondaryContainer,
+              ),
+          ],
+        ),
+        trailing: IconButton(
+          icon: Icon(Icons.delete_outline,
+              size: 20, color: theme.colorScheme.error.withOpacity(0.7)),
+          tooltip: '삭제',
+          onPressed: onDelete,
+        ),
+      ),
+    );
+  }
+}
+
+void _showRuleForm(BuildContext context, WidgetRef ref, {CategoryRule? rule}) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (_) => _RuleFormSheet(rule: rule, ref: ref),
+  );
+}
+
+class _RuleFormSheet extends ConsumerStatefulWidget {
+  const _RuleFormSheet({this.rule, required this.ref});
+  final CategoryRule? rule;
+  final WidgetRef ref;
+
+  @override
+  ConsumerState<_RuleFormSheet> createState() => _RuleFormSheetState();
+}
+
+class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _keywordCtrl;
+  int? _selectedCategoryId;
+  int? _selectedProfileId;
+  bool _saving = false;
+
+  bool get _isEdit => widget.rule != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final r = widget.rule;
+    _keywordCtrl = TextEditingController(text: r?.keyword ?? '');
+    _selectedCategoryId = r?.categoryId;
+    _selectedProfileId = r?.profileId;
+  }
+
+  @override
+  void dispose() {
+    _keywordCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedCategoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('카테고리를 선택해주세요')),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final companion = CategoryRulesCompanion(
+        id: _isEdit ? Value(widget.rule!.id) : const Value.absent(),
+        keyword: Value(_keywordCtrl.text.trim()),
+        categoryId: Value(_selectedCategoryId!),
+        profileId: Value(_selectedProfileId),
+        // 신규 추가 시 priority=0으로 저장 → 드래그로 순서 조정
+        priority: _isEdit ? Value(widget.rule!.priority) : const Value(0),
+      );
+      await ref.read(categoryRepositoryProvider).upsertRule(companion);
+      ref.invalidate(categoryRulesProvider);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('저장 실패: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final catsAsync = ref.watch(allCategoriesProvider);
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── 핸들 ──────────────────────────────────────────
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            // ── 헤더 ──────────────────────────────────────────
+            Row(
+              children: [
+                Text(_isEdit ? '규칙 수정' : '규칙 추가',
+                    style: theme.textTheme.titleLarge),
+                const Spacer(),
+                IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop()),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // ── 키워드 ─────────────────────────────────────────
+            TextFormField(
+              controller: _keywordCtrl,
+              decoration: const InputDecoration(
+                labelText: '거래처명 키워드 *',
+                hintText: '예: 스타벅스, 편의점, GS25',
+                helperText: '거래처명에 이 키워드가 포함되면 자동 분류됩니다',
+                prefixIcon: Icon(Icons.search),
+              ),
+              textInputAction: TextInputAction.next,
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? '키워드를 입력해주세요' : null,
+            ),
+            const SizedBox(height: 16),
+
+            // ── 카테고리 선택 ──────────────────────────────────
+            catsAsync.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (e, _) => Text('카테고리 로드 실패: $e'),
+              data: (cats) => DropdownButtonFormField<int>(
+                value: _selectedCategoryId,
+                decoration: const InputDecoration(labelText: '카테고리 *'),
+                items: cats
+                    .map((c) => DropdownMenuItem(
+                          value: c.id,
+                          child: Row(children: [
+                            if (c.colorHex != null)
+                              _ColorDot(color: _hexToColor(c.colorHex!)),
+                            const SizedBox(width: 8),
+                            Text(c.name),
+                          ]),
+                        ))
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedCategoryId = v),
+                validator: (v) => v == null ? '카테고리를 선택해주세요' : null,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── 프로필 적용 범위 ───────────────────────────────
+            SegmentedButton<int?>(
+              segments: const [
+                ButtonSegment(value: null, label: Text('공용')),
+                ButtonSegment(value: 1, label: Text('프로필 1')),
+                ButtonSegment(value: 2, label: Text('프로필 2')),
+              ],
+              selected: {_selectedProfileId},
+              onSelectionChanged: (s) =>
+                  setState(() => _selectedProfileId = s.first),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '공용: 두 프로필 모두 적용  /  개인: 해당 프로필만 적용',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.outline),
+            ),
+            const SizedBox(height: 4),
+            // ── 우선순위 안내 ──────────────────────────────────
+            Row(
+              children: [
+                Icon(Icons.info_outline,
+                    size: 14, color: theme.colorScheme.outline),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    '우선순위는 규칙 목록에서 드래그로 조정할 수 있습니다.',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // ── 저장 버튼 ──────────────────────────────────────
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: _saving
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(_isEdit ? '수정 완료' : '규칙 추가'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// 공용 소형 위젯
+// ════════════════════════════════════════════════════════════
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        label,
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.outline,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+}
+
+class _ColorDot extends StatelessWidget {
+  const _ColorDot({required this.color});
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
+}
 
 class _IconPickerGrid extends StatelessWidget {
   const _IconPickerGrid({
@@ -719,394 +1201,6 @@ class _IconPickerGrid extends StatelessWidget {
       ),
     );
   }
-}
-
-// ════════════════════════════════════════════════════════════
-// 규칙 관련 위젯
-// ════════════════════════════════════════════════════════════
-
-class _EmptyRulesPlaceholder extends StatelessWidget {
-  const _EmptyRulesPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.rule_outlined,
-              size: 64, color: theme.colorScheme.outlineVariant),
-          const SizedBox(height: 16),
-          Text('자동 분류 규칙이 없습니다', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            '+ 버튼을 눌러 규칙을 추가하세요.\n거래처명 키워드가 일치하면 자동으로 카테고리가 분류됩니다.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.outline),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RuleTile extends StatelessWidget {
-  const _RuleTile({
-    required this.rule,
-    required this.categoryName,
-    this.categoryColor,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  final CategoryRule rule;
-  final String categoryName;
-  final String? categoryColor;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = categoryColor != null
-        ? _hexToColor(categoryColor!)
-        : theme.colorScheme.primary;
-
-    return Dismissible(
-      key: ValueKey(rule.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.errorContainer,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Icon(Icons.delete_outline,
-            color: theme.colorScheme.onErrorContainer),
-      ),
-      confirmDismiss: (_) async {
-        return await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('규칙 삭제'),
-            content: Text('"${rule.keyword}" 규칙을 삭제할까요?'),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('취소')),
-              FilledButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('삭제')),
-            ],
-          ),
-        );
-      },
-      onDismissed: (_) => onDelete(),
-      child: Card(
-        child: ListTile(
-          onTap: onEdit,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          leading: CircleAvatar(
-            backgroundColor: color.withOpacity(0.18),
-            radius: 20,
-            child: Icon(Icons.rule, color: color, size: 18),
-          ),
-          title: Text(
-            rule.keyword,
-            style: theme.textTheme.bodyLarge
-                ?.copyWith(fontWeight: FontWeight.w500),
-          ),
-          subtitle: Row(
-            children: [
-              _ColorDot(color: color),
-              const SizedBox(width: 4),
-              Text(categoryName, style: theme.textTheme.bodySmall),
-              const SizedBox(width: 8),
-              if (rule.profileId == null)
-                _Badge(
-                  label: '공용',
-                  color: theme.colorScheme.secondaryContainer,
-                  textColor: theme.colorScheme.onSecondaryContainer,
-                ),
-            ],
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (rule.priority > 0)
-                _Badge(
-                  label: 'P${rule.priority}',
-                  color: theme.colorScheme.tertiaryContainer,
-                  textColor: theme.colorScheme.onTertiaryContainer,
-                ),
-              const SizedBox(width: 4),
-              Icon(Icons.chevron_right,
-                  size: 18, color: theme.colorScheme.outlineVariant),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-void _showRuleForm(BuildContext context, WidgetRef ref, {CategoryRule? rule}) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (_) => _RuleFormSheet(rule: rule, ref: ref),
-  );
-}
-
-class _RuleFormSheet extends ConsumerStatefulWidget {
-  const _RuleFormSheet({this.rule, required this.ref});
-  final CategoryRule? rule;
-  final WidgetRef ref;
-
-  @override
-  ConsumerState<_RuleFormSheet> createState() => _RuleFormSheetState();
-}
-
-class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _keywordCtrl;
-  late final TextEditingController _priorityCtrl;
-  int? _selectedCategoryId;
-  int? _selectedProfileId;
-  bool _saving = false;
-
-  bool get _isEdit => widget.rule != null;
-
-  @override
-  void initState() {
-    super.initState();
-    final r = widget.rule;
-    _keywordCtrl = TextEditingController(text: r?.keyword ?? '');
-    _priorityCtrl = TextEditingController(text: r?.priority.toString() ?? '0');
-    _selectedCategoryId = r?.categoryId;
-    _selectedProfileId = r?.profileId;
-  }
-
-  @override
-  void dispose() {
-    _keywordCtrl.dispose();
-    _priorityCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedCategoryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('카테고리를 선택해주세요')),
-      );
-      return;
-    }
-    setState(() => _saving = true);
-    try {
-      final companion = CategoryRulesCompanion(
-        id: _isEdit ? Value(widget.rule!.id) : const Value.absent(),
-        keyword: Value(_keywordCtrl.text.trim()),
-        categoryId: Value(_selectedCategoryId!),
-        profileId: Value(_selectedProfileId),
-        priority: Value(int.tryParse(_priorityCtrl.text) ?? 0),
-      );
-      await ref.read(categoryRepositoryProvider).upsertRule(companion);
-      ref.invalidate(categoryRulesProvider);
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('저장 실패: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final catsAsync = ref.watch(allCategoriesProvider);
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ── 핸들 ──────────────────────────────────────────
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-
-            // ── 헤더 ──────────────────────────────────────────
-            Row(
-              children: [
-                Text(_isEdit ? '규칙 수정' : '규칙 추가',
-                    style: theme.textTheme.titleLarge),
-                const Spacer(),
-                IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop()),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            TextFormField(
-              controller: _keywordCtrl,
-              decoration: const InputDecoration(
-                labelText: '거래처명 키워드 *',
-                hintText: '예: 스타벅스, 편의점, GS25',
-                helperText: '거래처명에 이 키워드가 포함되면 자동 분류됩니다',
-                prefixIcon: Icon(Icons.search),
-              ),
-              textInputAction: TextInputAction.next,
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? '키워드를 입력해주세요' : null,
-            ),
-            const SizedBox(height: 16),
-
-            catsAsync.when(
-              loading: () => const LinearProgressIndicator(),
-              error: (e, _) => Text('카테고리 로드 실패: $e'),
-              data: (cats) => DropdownButtonFormField<int>(
-                value: _selectedCategoryId,
-                decoration: const InputDecoration(labelText: '카테고리 *'),
-                items: cats
-                    .map((c) => DropdownMenuItem(
-                          value: c.id,
-                          child: Row(children: [
-                            if (c.colorHex != null)
-                              _ColorDot(color: _hexToColor(c.colorHex!)),
-                            const SizedBox(width: 8),
-                            Text(c.name),
-                          ]),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedCategoryId = v),
-                validator: (v) => v == null ? '카테고리를 선택해주세요' : null,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            SegmentedButton<int?>(
-              segments: const [
-                ButtonSegment(value: null, label: Text('공용')),
-                ButtonSegment(value: 1, label: Text('프로필 1')),
-                ButtonSegment(value: 2, label: Text('프로필 2')),
-              ],
-              selected: {_selectedProfileId},
-              onSelectionChanged: (s) =>
-                  setState(() => _selectedProfileId = s.first),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '공용: 두 프로필 모두 적용  /  개인: 해당 프로필만 적용',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.outline),
-            ),
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _priorityCtrl,
-              decoration: const InputDecoration(
-                labelText: '우선순위',
-                helperText: '숫자가 높을수록 먼저 적용됩니다 (기본값 0)',
-                prefixIcon: Icon(Icons.low_priority),
-              ),
-              keyboardType: TextInputType.number,
-              validator: (v) {
-                if (v == null || v.isEmpty) return null;
-                if (int.tryParse(v) == null) return '숫자를 입력해주세요';
-                return null;
-              },
-            ),
-            const SizedBox(height: 24),
-
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_isEdit ? '수정 완료' : '규칙 추가'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-Future<void> _deleteRule(
-    BuildContext context, WidgetRef ref, CategoryRule rule) async {
-  try {
-    await ref.read(categoryRepositoryProvider).deleteRule(rule.id);
-    ref.invalidate(categoryRulesProvider);
-  } catch (e) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
-    }
-  }
-}
-
-// ════════════════════════════════════════════════════════════
-// 공용 소형 위젯
-// ════════════════════════════════════════════════════════════
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Text(
-        label,
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.outline,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-}
-
-class _ColorDot extends StatelessWidget {
-  const _ColorDot({required this.color});
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      );
 }
 
 class _Badge extends StatelessWidget {
