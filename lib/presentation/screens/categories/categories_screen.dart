@@ -23,6 +23,64 @@ Color _hexToColor(String hex) =>
 String _colorToHex(Color color) =>
     '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
 
+// ── 아이콘 이름 → IconData 변환 ───────────────────────────
+// Material Icons 이름 문자열을 IconData로 매핑.
+// DB에 저장된 문자열 기준.
+const Map<String, IconData> _kIconMap = {
+  'restaurant': Icons.restaurant,
+  'directions_car': Icons.directions_car,
+  'shopping_bag': Icons.shopping_bag,
+  'local_hospital': Icons.local_hospital,
+  'movie': Icons.movie,
+  'school': Icons.school,
+  'receipt': Icons.receipt,
+  'smartphone': Icons.smartphone,
+  'account_balance': Icons.account_balance,
+  'swap_horiz': Icons.swap_horiz,
+  'more_horiz': Icons.more_horiz,
+  'dining': Icons.dining,
+  'local_cafe': Icons.local_cafe,
+  'home': Icons.home,
+  'shopping_cart': Icons.shopping_cart,
+  // 추가 선택 가능 아이콘
+  'sports': Icons.sports,
+  'pets': Icons.pets,
+  'flight': Icons.flight,
+  'hotel': Icons.hotel,
+  'directions_bus': Icons.directions_bus,
+  'local_gas_station': Icons.local_gas_station,
+  'fitness_center': Icons.fitness_center,
+  'spa': Icons.spa,
+  'child_care': Icons.child_care,
+  'work': Icons.work,
+  'cake': Icons.cake,
+  'wine_bar': Icons.wine_bar,
+  'music_note': Icons.music_note,
+  'videogame_asset': Icons.videogame_asset,
+  'book': Icons.book,
+  'computer': Icons.computer,
+  'camera_alt': Icons.camera_alt,
+  'volunteer_activism': Icons.volunteer_activism,
+  'card_giftcard': Icons.card_giftcard,
+  'savings': Icons.savings,
+  'local_pharmacy': Icons.local_pharmacy,
+  'park': Icons.park,
+  'beach_access': Icons.beach_access,
+  'electric_bolt': Icons.electric_bolt,
+  'water_drop': Icons.water_drop,
+  'wifi': Icons.wifi,
+  'tv': Icons.tv,
+  'kitchen': Icons.kitchen,
+  'build': Icons.build,
+  'attach_money': Icons.attach_money,
+};
+
+IconData _iconFromName(String? name) =>
+    _kIconMap[name] ?? Icons.circle_outlined;
+
+// 선택 가능한 아이콘 목록 (이름 순서 유지)
+final _kSelectableIcons = _kIconMap.keys.toList();
+
 class CategoriesScreen extends ConsumerStatefulWidget {
   const CategoriesScreen({super.key});
 
@@ -139,7 +197,6 @@ class _CategoryListTab extends ConsumerWidget {
           );
         }
 
-        // 기본(isCustom==0) / 커스텀(isCustom==1) 분리
         final defaults = cats.where((c) => c.isCustom == 0).toList();
         final customs = cats.where((c) => c.isCustom == 1).toList();
 
@@ -226,7 +283,8 @@ class _CategoryTile extends StatelessWidget {
       leading: CircleAvatar(
         backgroundColor: color.withOpacity(0.18),
         radius: 20,
-        child: Icon(Icons.circle, color: color, size: 14),
+        // 저장된 아이콘 이름으로 실제 아이콘 표시
+        child: Icon(_iconFromName(category.icon), color: color, size: 18),
       ),
       title: Text(
         category.name,
@@ -323,7 +381,9 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late Color _pickedColor;
+  late String _pickedIcon;
   bool _saving = false;
+  bool _showIconPicker = false;
 
   bool get _isEdit => widget.category != null;
   bool get _isDeletable => _isEdit && widget.category!.isCustom == 1;
@@ -335,6 +395,10 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
     _nameCtrl = TextEditingController(text: c?.name ?? '');
     _pickedColor =
         c?.colorHex != null ? _hexToColor(c!.colorHex!) : Colors.blue;
+    // 기존 아이콘이 있으면 유지, 없으면 기본값
+    _pickedIcon = (c?.icon != null && _kIconMap.containsKey(c!.icon))
+        ? c.icon!
+        : 'more_horiz';
   }
 
   @override
@@ -351,7 +415,7 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
         id: _isEdit ? Value(widget.category!.id) : const Value.absent(),
         name: Value(_nameCtrl.text.trim()),
         colorHex: Value(_colorToHex(_pickedColor)),
-        icon: _isEdit ? Value(widget.category!.icon) : const Value.absent(),
+        icon: Value(_pickedIcon),
         isCustom: _isEdit ? Value(widget.category!.isCustom) : const Value(1),
       );
       await ref.read(categoryRepositoryProvider).upsert(companion);
@@ -465,6 +529,51 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
             ),
             const SizedBox(height: 20),
 
+            // ── 아이콘 선택 ────────────────────────────────────
+            Row(
+              children: [
+                Text('아이콘', style: theme.textTheme.labelLarge),
+                const SizedBox(width: 12),
+                // 현재 선택된 아이콘 미리보기
+                CircleAvatar(
+                  backgroundColor: _pickedColor.withOpacity(0.18),
+                  radius: 20,
+                  child: Icon(
+                    _iconFromName(_pickedIcon),
+                    color: _pickedColor,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () =>
+                      setState(() => _showIconPicker = !_showIconPicker),
+                  icon: Icon(
+                    _showIconPicker
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    size: 18,
+                  ),
+                  label: Text(_showIconPicker ? '닫기' : '변경'),
+                  style: TextButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  ),
+                ),
+              ],
+            ),
+
+            // ── 아이콘 선택 그리드 (토글) ──────────────────────
+            if (_showIconPicker) ...[
+              const SizedBox(height: 8),
+              _IconPickerGrid(
+                selected: _pickedIcon,
+                accentColor: _pickedColor,
+                onSelected: (name) => setState(() => _pickedIcon = name),
+              ),
+            ],
+            const SizedBox(height: 20),
+
             // ── 색상 미리보기 ──────────────────────────────────
             Row(
               children: [
@@ -539,6 +648,74 @@ class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// 아이콘 선택 그리드
+// ════════════════════════════════════════════════════════════
+
+class _IconPickerGrid extends StatelessWidget {
+  const _IconPickerGrid({
+    required this.selected,
+    required this.accentColor,
+    required this.onSelected,
+  });
+
+  final String selected;
+  final Color accentColor;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outlineVariant.withOpacity(0.4)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 7,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+        ),
+        itemCount: _kSelectableIcons.length,
+        itemBuilder: (_, i) {
+          final name = _kSelectableIcons[i];
+          final isSelected = name == selected;
+          return GestureDetector(
+            onTap: () => onSelected(name),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? accentColor.withOpacity(0.18)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isSelected
+                      ? accentColor
+                      : cs.outlineVariant.withOpacity(0.3),
+                  width: isSelected ? 1.5 : 1,
+                ),
+              ),
+              child: Icon(
+                _iconFromName(name),
+                size: 20,
+                color: isSelected ? accentColor : cs.onSurfaceVariant,
+              ),
+            ),
+          );
+        },
       ),
     );
   }
