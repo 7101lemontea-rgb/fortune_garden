@@ -7,6 +7,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../router/app_routes.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -141,7 +143,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/transactions/new'),
+        onPressed: () => context.push(AppRoutes.transactionNew),
         tooltip: '거래 추가',
         child: const Icon(Icons.add),
       ),
@@ -245,7 +247,7 @@ class _DesktopLayoutState extends ConsumerState<_DesktopLayout> {
                   IconButton(
                     icon: const Icon(Icons.person_outline,
                         color: Colors.white, size: 22),
-                    onPressed: () => context.push('/profiles'),
+                    onPressed: () => context.push(AppRoutes.profiles),
                   ),
                   const SizedBox(width: 4),
                 ],
@@ -414,7 +416,8 @@ class _TxnListColumn extends ConsumerWidget {
                       expenseColor: expenseColor,
                       incomeColor: incomeColor,
                       showDivider: !isLast && !nextIsHeader,
-                      onTap: () => context.push('/transactions/${txn.id}'),
+                      onTap: () =>
+                          context.push(AppRoutes.transactionDetail(txn.id)),
                       onDelete: () => onDelete(txn.id),
                     );
                   },
@@ -549,7 +552,7 @@ class _TxnScrollView extends ConsumerWidget {
                 color: Colors.white,
                 size: 22,
               ),
-              onPressed: () => context.push('/profiles'),
+              onPressed: () => context.push(AppRoutes.profiles),
             ),
           ],
         ),
@@ -671,7 +674,8 @@ class _TxnScrollView extends ConsumerWidget {
                       expenseColor: expenseColor,
                       incomeColor: incomeColor,
                       showDivider: !isLast && !nextIsHeader,
-                      onTap: () => context.push('/transactions/${txn.id}'),
+                      onTap: () =>
+                          context.push(AppRoutes.transactionDetail(txn.id)),
                       onDelete: () => onDelete(txn.id),
                     );
                   },
@@ -1415,7 +1419,7 @@ class _EmptyView extends StatelessWidget {
           if (!hasFilter) ...[
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: () => context.go('/import'),
+              onPressed: () => context.go(AppRoutes.import),
               icon: const Icon(Icons.upload_file_outlined, size: 18),
               label: const Text('CSV 가져오기'),
             ),

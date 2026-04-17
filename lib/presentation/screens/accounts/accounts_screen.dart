@@ -8,22 +8,21 @@
 //   - 계좌 등록/수정 폼 (BottomSheet)
 //   - 계좌 삭제 (확인 다이얼로그)
 
-import 'dart:typed_data';
-import 'dart:convert';
-
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
+import '../../../core/security/account_encryption_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/repositories/i_account_repository.dart';
 import '../../../domain/repositories/i_import_history_repository.dart';
+import '../../router/app_routes.dart';
 
 // ─────────────────────────────────────────────────────────
 // Provider — 전체 프로필의 계좌 목록
@@ -472,7 +471,7 @@ class _AccountTile extends ConsumerWidget {
               title: const Text('CSV 가져오기'),
               onTap: () {
                 Navigator.pop(context);
-                context.go('/import');
+                context.go(AppRoutes.import);
               },
             ),
             ListTile(
@@ -587,9 +586,11 @@ class _AccountFormSheet extends ConsumerStatefulWidget {
 
 class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
   final _aliasCtrl = TextEditingController();
+  final _accountNumberCtrl = TextEditingController();
   late int _selectedProfileId;
   String? _selectedInstitutionCode;
   bool _saving = false;
+  bool _obscureAccountNumber = true; // 계좌번호 마스킹 토글
 
   List<Institution> _institutions = [];
 
@@ -606,6 +607,8 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
       _aliasCtrl.text = widget.existing!.alias ?? '';
       _selectedProfileId = widget.existing!.profileId;
       _selectedInstitutionCode = widget.existing!.institutionCode;
+      // 기존 계좌번호 복호화해서 필드에 표시
+      _loadExistingAccountNumber();
     } else {
       _selectedProfileId =
           widget.groups.isNotEmpty ? widget.groups.first.profile.id : 1;
@@ -616,6 +619,7 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
   @override
   void dispose() {
     _aliasCtrl.dispose();
+    _accountNumberCtrl.dispose();
     super.dispose();
   }
 
@@ -624,33 +628,62 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
     if (mounted) setState(() => _institutions = list);
   }
 
+  /// 수정 모드: 기존 암호화된 계좌번호를 복호화해 입력 필드에 채움.
+  /// DEV placeholder이거나 복호화 실패 시 필드를 비워둠.
+  Future<void> _loadExistingAccountNumber() async {
+    final enc = widget.existing?.accountNumberEnc;
+    if (enc == null || enc.isEmpty) return;
+
+    if (AccountEncryptionService.isDevPlaceholder(enc)) return;
+
+    final decrypted = await AccountEncryptionService.decrypt(enc);
+    if (mounted && decrypted != null) {
+      _accountNumberCtrl.text = decrypted;
+    }
+  }
+
   Future<void> _save() async {
     if (_selectedInstitutionCode == null) return;
+
+    final rawNumber = _accountNumberCtrl.text.trim();
+    if (rawNumber.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('계좌번호를 입력해주세요')),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
+    try {
+      // 계좌번호 AES-256 암호화
+      final encBytes = await AccountEncryptionService.encrypt(rawNumber);
 
-    // 계좌번호 암호화 placeholder
-    final encBytes = Uint8List.fromList(
-      utf8.encode(
-          'DEV:${_selectedInstitutionCode}_${DateTime.now().millisecondsSinceEpoch}'),
-    );
-
-    await ref.read(accountRepositoryProvider).upsert(
-          AccountsCompanion(
-            id: widget.existing != null
-                ? Value(widget.existing!.id)
-                : const Value.absent(),
-            profileId: Value(_selectedProfileId),
-            institutionCode: Value(_selectedInstitutionCode!),
-            accountNumberEnc: Value(encBytes),
-            alias: Value(
-              _aliasCtrl.text.trim().isEmpty ? null : _aliasCtrl.text.trim(),
+      await ref.read(accountRepositoryProvider).upsert(
+            AccountsCompanion(
+              id: widget.existing != null
+                  ? Value(widget.existing!.id)
+                  : const Value.absent(),
+              profileId: Value(_selectedProfileId),
+              institutionCode: Value(_selectedInstitutionCode!),
+              accountNumberEnc: Value(encBytes),
+              alias: Value(
+                _aliasCtrl.text.trim().isEmpty ? null : _aliasCtrl.text.trim(),
+              ),
+              balance: const Value(0),
             ),
-            balance: const Value(0),
-          ),
-        );
+          );
 
-    widget.onSaved();
-    if (mounted) Navigator.pop(context);
+      widget.onSaved();
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 실패: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -724,7 +757,7 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
             ),
             const SizedBox(height: 12),
 
-            // 금융기관 선택
+            // 금융기관 선택 (수정 시 비활성)
             DropdownButtonFormField<String>(
               value: _selectedInstitutionCode,
               decoration: const InputDecoration(labelText: '금융기관 *'),
@@ -734,6 +767,43 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
               onChanged: isEdit
                   ? null
                   : (v) => setState(() => _selectedInstitutionCode = v),
+            ),
+            const SizedBox(height: 12),
+
+            // 계좌번호 입력 (암호화 저장)
+            TextField(
+              controller: _accountNumberCtrl,
+              obscureText: _obscureAccountNumber,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: '계좌번호 *',
+                hintText: '숫자만 입력 (예: 12345678901234)',
+                prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureAccountNumber
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    size: 20,
+                  ),
+                  onPressed: () => setState(
+                      () => _obscureAccountNumber = !_obscureAccountNumber),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.shield_outlined, size: 12, color: cs.outline),
+                const SizedBox(width: 4),
+                Text(
+                  'AES-256으로 암호화되어 기기에 안전하게 저장됩니다.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: cs.outline),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
 

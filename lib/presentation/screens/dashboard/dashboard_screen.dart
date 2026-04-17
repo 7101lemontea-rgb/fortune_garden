@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../router/app_routes.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -97,7 +99,7 @@ class DashboardScreen extends ConsumerWidget {
                   IconButton(
                     icon: const Icon(Icons.person_outline,
                         color: Color.fromARGB(255, 255, 255, 255), size: 22),
-                    onPressed: () => context.go('/profiles'),
+                    onPressed: () => context.go(AppRoutes.profiles),
                   ),
                 ],
               ),
@@ -148,7 +150,7 @@ class DashboardScreen extends ConsumerWidget {
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () => context.go('/transactions'),
+                                onTap: () => context.go(AppRoutes.transactions),
                                 child: Row(
                                   children: [
                                     Text(
@@ -170,7 +172,8 @@ class DashboardScreen extends ConsumerWidget {
                           txListAsync.when(
                             data: (txns) => txns.isEmpty
                                 ? _EmptyTxn(
-                                    onImport: () => context.go('/import'))
+                                    onImport: () =>
+                                        context.go(AppRoutes.import))
                                 : _TxnList(txns: txns.take(10).toList()),
                             loading: () => const _CardSkeleton(height: 200),
                             error: (e, _) => _ErrorCard(message: '$e'),
@@ -186,7 +189,7 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.go('/transactions/new'),
+        onPressed: () => context.go(AppRoutes.transactionNew),
         child: const Icon(Icons.add, size: 26),
       ),
     );
@@ -790,7 +793,7 @@ class _TxnTile extends StatelessWidget {
     final iconBg = isDark ? const Color(0xFF0d2a1d) : const Color(0xFFF2EFE6);
 
     return InkWell(
-      onTap: () => context.go('/transactions/${txn.id}'),
+      onTap: () => context.go(AppRoutes.transactionDetail(txn.id)),
       borderRadius: BorderRadius.circular(20),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),

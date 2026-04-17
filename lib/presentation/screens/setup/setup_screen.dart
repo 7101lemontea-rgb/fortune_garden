@@ -4,6 +4,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../router/app_routes.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../application/profile/profile_use_case.dart';
@@ -68,7 +70,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
       // activeProfileProvider 갱신 → go_router redirect가 /dashboard로 이동
       ref.invalidate(activeProfileProvider);
-      if (mounted) context.go('/dashboard');
+      if (mounted) context.go(AppRoutes.dashboard);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

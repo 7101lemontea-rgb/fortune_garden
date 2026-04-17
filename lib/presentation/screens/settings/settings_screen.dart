@@ -7,6 +7,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../router/app_routes.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -71,19 +73,19 @@ class SettingsScreen extends ConsumerWidget {
                     _NavTile(
                       icon: Icons.person_outline,
                       label: '프로필 관리',
-                      onTap: () => context.go('/profiles'),
+                      onTap: () => context.go(AppRoutes.profiles),
                     ),
                     _Divider(),
                     _NavTile(
                       icon: Icons.category_outlined,
                       label: '카테고리 설정',
-                      onTap: () => context.go('/categories'),
+                      onTap: () => context.go(AppRoutes.categories),
                     ),
                     _Divider(),
                     _NavTile(
                       icon: Icons.account_balance_outlined,
                       label: '계좌 관리',
-                      onTap: () => context.go('/accounts'),
+                      onTap: () => context.go(AppRoutes.accounts),
                     ),
                   ]),
 

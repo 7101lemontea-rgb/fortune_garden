@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../router/app_routes.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/parsed_transaction.dart';
 import '../../../data/database/app_database.dart';
@@ -726,7 +728,7 @@ class _EmptyAccountsGuide extends StatelessWidget {
             ),
             const SizedBox(height: 28),
             FilledButton.icon(
-              onPressed: () => context.go('/accounts'),
+              onPressed: () => context.go(AppRoutes.accounts),
               icon: const Icon(Icons.credit_card_outlined),
               label: const Text('계좌 관리로 이동'),
             ),

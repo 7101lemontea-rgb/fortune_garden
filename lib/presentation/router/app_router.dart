@@ -24,26 +24,25 @@ import '../screens/categories/categories_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/profiles/profiles_screen.dart';
 import '../shell/app_shell.dart';
+import 'app_routes.dart';
 
 // ── Provider ──────────────────────────────────────────
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/dashboard',
-    // 임시 변경
-    // initialLocation: '/setup',
+    initialLocation: AppRoutes.dashboard,
     redirect: (context, state) async {
       // SAD v1.1 §5.1 — 프로필 0개 → /setup, 1개 이상 → /dashboard
       final activeProfile = await ref.read(activeProfileProvider.future);
-      final isSetup = state.matchedLocation == '/setup';
+      final isSetup = state.matchedLocation == AppRoutes.setup;
 
-      if (activeProfile == null && !isSetup) return '/setup';
-      if (activeProfile != null && isSetup) return '/dashboard';
+      if (activeProfile == null && !isSetup) return AppRoutes.setup;
+      if (activeProfile != null && isSetup) return AppRoutes.dashboard;
       return null;
     },
     routes: [
       // SCR-001 — 초기 설정 (쉘 없이 단독 표시)
       GoRoute(
-        path: '/setup',
+        path: AppRoutes.setup,
         builder: (_, __) => const SetupScreen(),
       ),
 
@@ -53,24 +52,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           // SCR-002 — 대시보드
           GoRoute(
-            path: '/dashboard',
+            path: AppRoutes.dashboard,
             builder: (_, __) => const DashboardScreen(),
           ),
 
           // SCR-003 — 거래 내역
           GoRoute(
-            path: '/transactions',
+            path: AppRoutes.transactions,
             builder: (_, __) => const TransactionsScreen(),
             routes: [
               // SCR-005 — 수동 거래 입력
               // ※ 정적 경로 'new'를 동적 경로 ':id' 보다 먼저 선언
               GoRoute(
-                path: 'new',
+                path: AppRoutes.transactionNewSeg,
                 builder: (_, __) => const TransactionNewScreen(),
               ),
               // SCR-004 — 거래 상세/수정
               GoRoute(
-                path: ':id',
+                path: AppRoutes.transactionIdSeg,
                 builder: (_, state) => TransactionDetailScreen(
                   id: int.parse(state.pathParameters['id']!),
                 ),
@@ -80,37 +79,37 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
           // SCR-006 — 리포트
           GoRoute(
-            path: '/report',
+            path: AppRoutes.report,
             builder: (_, __) => const ReportScreen(),
           ),
 
           // SCR-007 — 계좌 관리
           GoRoute(
-            path: '/accounts',
+            path: AppRoutes.accounts,
             builder: (_, __) => const AccountsScreen(),
           ),
 
           // SCR-008 — CSV 가져오기
           GoRoute(
-            path: '/import',
+            path: AppRoutes.import,
             builder: (_, __) => const ImportScreen(),
           ),
 
           // SCR-009 — 카테고리 설정
           GoRoute(
-            path: '/categories',
+            path: AppRoutes.categories,
             builder: (_, __) => const CategoriesScreen(),
           ),
 
           // SCR-010 — 앱 설정
           GoRoute(
-            path: '/settings',
+            path: AppRoutes.settings,
             builder: (_, __) => const SettingsScreen(),
           ),
 
           // SCR-011 — 프로필 관리
           GoRoute(
-            path: '/profiles',
+            path: AppRoutes.profiles,
             builder: (_, __) => const ProfilesScreen(),
           ),
         ],
