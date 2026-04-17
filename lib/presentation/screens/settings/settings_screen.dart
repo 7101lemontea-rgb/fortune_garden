@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -16,6 +17,11 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../providers/pin_notifier.dart';
 import '../pin/pin_screen.dart';
+
+// ── 앱 버전 Provider ──────────────────────────────────────
+final _packageInfoProvider = FutureProvider.autoDispose<PackageInfo>(
+  (_) => PackageInfo.fromPlatform(),
+);
 
 // ─────────────────────────────────────────────────────────
 // SCR-010 메인 화면
@@ -32,6 +38,7 @@ class SettingsScreen extends ConsumerWidget {
     final pinState = ref.watch(pinLockProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final headerBg = isDark ? _headerBgDark : _headerBgLight;
+    final packageInfoAsync = ref.watch(_packageInfoProvider);
 
     return Scaffold(
       body: GrainOverlay(
@@ -143,7 +150,13 @@ class SettingsScreen extends ConsumerWidget {
                     _InfoTile(
                       icon: Icons.info_outline,
                       label: 'Fortune Garden',
-                      value: 'v1.0.0',
+                      // PackageInfo 로드 전: '-', 로드 후: 'v버전명 (빌드번호)'
+                      value: packageInfoAsync.when(
+                        data: (info) =>
+                            'v${info.version} (${info.buildNumber})',
+                        loading: () => '-',
+                        error: (_, __) => 'v1.0.0',
+                      ),
                     ),
                   ]),
                 ]),

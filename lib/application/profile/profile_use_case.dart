@@ -14,7 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ── Provider ──────────────────────────────────────────
 final profileUseCaseProvider = Provider<ProfileUseCase>((ref) {
   return ProfileUseCase(
-    profileRepo:  ref.read(profileRepositoryProvider),
+    profileRepo: ref.read(profileRepositoryProvider),
     settingsRepo: ref.read(settingsRepositoryProvider),
   );
 });
@@ -24,10 +24,10 @@ class ProfileUseCase {
   const ProfileUseCase({
     required IProfileRepository profileRepo,
     required ISettingsRepository settingsRepo,
-  })  : _profileRepo  = profileRepo,
+  })  : _profileRepo = profileRepo,
         _settingsRepo = settingsRepo;
 
-  final IProfileRepository  _profileRepo;
+  final IProfileRepository _profileRepo;
   final ISettingsRepository _settingsRepo;
 
   // ── 조회 ──────────────────────────────────────────
@@ -55,19 +55,27 @@ class ProfileUseCase {
   // ── CRUD ──────────────────────────────────────────
 
   /// 프로필 생성 또는 수정.
+  ///
+  /// 수정 시: 기존 createdAt을 유지하여 생성일 손실 방지.
+  /// 신규 시: DateTime.now()로 createdAt 설정.
   Future<void> upsert({
     required int id,
     required String name,
     required String colorHex,
     String defaultViewMode = 'personal',
-  }) =>
-      _profileRepo.upsert(ProfilesCompanion(
-        id:              Value(id),
-        name:            Value(name),
-        colorHex:        Value(colorHex),
-        defaultViewMode: Value(defaultViewMode),
-        createdAt:       Value(DateTime.now().millisecondsSinceEpoch),
-      ));
+  }) async {
+    final existing = await _profileRepo.getById(id);
+    final createdAt =
+        existing?.createdAt ?? DateTime.now().millisecondsSinceEpoch;
+
+    return _profileRepo.upsert(ProfilesCompanion(
+      id: Value(id),
+      name: Value(name),
+      colorHex: Value(colorHex),
+      defaultViewMode: Value(defaultViewMode),
+      createdAt: Value(createdAt),
+    ));
+  }
 
   /// 프로필 삭제.
   Future<void> delete(int id) => _profileRepo.delete(id);
