@@ -94,18 +94,20 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 
   Future<void> _deleteTransaction(int id) async {
+    // ※ pop은 다이얼로그 자신의 context(dialogContext)로 호출한다.
+    //   (바깥 context로 pop하면 현재 페이지가 닫혀 화면이 비어버린다)
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('거래 삭제'),
         content: const Text('이 거래를 삭제하시겠습니까?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('취소'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: Text(
               '삭제',
               style: TextStyle(color: Theme.of(context).colorScheme.error),

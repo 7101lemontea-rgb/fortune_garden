@@ -536,9 +536,12 @@ class _AccountTile extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final expenseColor = isDark ? AppTheme.expenseDark : AppTheme.expenseLight;
 
+    // ※ pop은 반드시 다이얼로그 자신의 context(dialogContext)로 호출한다.
+    //   바깥 context로 pop하면 ShellRoute의 Navigator가 현재 페이지를 닫아
+    //   "popped the last page off of the stack"으로 화면이 비어버린다.
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('계좌 삭제'),
         content: Text(
           '\'${account.alias ?? account.institutionCode}\' 계좌를 삭제하면\n'
@@ -547,13 +550,13 @@ class _AccountTile extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('취소'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: expenseColor),
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               await ref.read(accountRepositoryProvider).delete(account.id);
               onChanged();
             },
