@@ -7,7 +7,8 @@
 //   1. 한국어 로케일 데이터 초기화 (intl)
 //   2. 금융기관 코드 Seed
 //   3. CSV 파서 프로필 Seed
-//   4. [kDebugMode 전용] 임시 프로필·계좌 Seed
+//   4. 기본 자동 분류 규칙 Seed (최초 1회)
+//   5. [kDebugMode 전용] 임시 프로필·계좌 Seed
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +16,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'data/database/database_provider.dart';
 import 'data/database/seed_institutions.dart';
+import 'data/database/seed_category_rules.dart';
 import 'data/database/seed_dev_data.dart';
 
 /// 앱 시작 시 1회 실행되는 초기화 함수.
@@ -29,6 +31,9 @@ Future<void> initializeApp(WidgetRef ref) async {
 
   // CSV 파서 프로필 기본값 upsert
   await seedCsvParserProfiles(db);
+
+  // 거래구분 기반 기본 분류 규칙 (최초 1회만 삽입)
+  await seedCategoryRules(db);
 
   // 개발 모드 전용: 임시 프로필 2개 + 계좌 4개 생성
   // 이미 데이터가 있으면 자동으로 건너뜀

@@ -246,20 +246,39 @@ class CsvImportNotifier extends Notifier<ImportState> {
   @override
   ImportState build() => const ImportState();
 
+  /// CSV 파일 가져오기.
   Future<void> execute({
     required File file,
     required int profileId,
     required int accountId,
     required String institutionCode,
-  }) async {
-    state = state.copyWith(status: ImportStatus.importing);
-    try {
-      final result = await ref.read(csvImportUseCaseProvider).execute(
+  }) =>
+      _run(() => ref.read(csvImportUseCaseProvider).execute(
             file: file,
             profileId: profileId,
             accountId: accountId,
             institutionCode: institutionCode,
-          );
+          ));
+
+  /// 텍스트 붙여넣기 가져오기.  ★ v1.2 신규
+  Future<void> executeFromText({
+    required String content,
+    required int profileId,
+    required int accountId,
+    required String institutionCode,
+  }) =>
+      _run(() => ref.read(csvImportUseCaseProvider).executeFromText(
+            content: content,
+            profileId: profileId,
+            accountId: accountId,
+            institutionCode: institutionCode,
+          ));
+
+  /// 두 경로의 공통 상태 전이 + 관련 Provider 무효화.
+  Future<void> _run(Future<ImportResult> Function() action) async {
+    state = state.copyWith(status: ImportStatus.importing);
+    try {
+      final result = await action();
       state = ImportState(status: ImportStatus.done, result: result);
       ref.invalidate(transactionListProvider);
       ref.invalidate(dashboardSummaryProvider);

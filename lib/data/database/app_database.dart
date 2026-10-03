@@ -17,6 +17,11 @@
 //   v1.3 (대시보드 차트)
 //     - getCategoryExpenses()     신규 (DonutChart용)
 //     - getMonthlyTrend()         신규 (BarChart용)
+//   v1.4 (텍스트 붙여넣기 가져오기)  schemaVersion 2 → 3
+//     - csv_parser_profiles에 컬럼 7개 추가
+//       (sourceType, withdrawCol, depositCol, balanceCol,
+//        txnTypeCol, headerKeyword, rowOrder)
+//     - getParserProfile()에 sourceType 파라미터 추가
 
 import 'dart:io';
 
@@ -84,7 +89,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   // ── 마이그레이션 ────────────────────────────────────────────
   @override
@@ -112,6 +117,31 @@ class AppDatabase extends _$AppDatabase {
               'ON csv_parser_profiles (institution_code)',
             );
           }
+
+          // v3: 합계 제외 플래그.
+          // categories는 v1부터 존재하므로 from < 3 전체에 적용한다.
+          if (from < 3) {
+            await m.addColumn(categories, categories.excludeFromTotals);
+            await m.database.customStatement(
+              "UPDATE categories SET exclude_from_totals = 1 "
+              "WHERE name = '이체'",
+            );
+          }
+
+          // v3: csv_parser_profiles 컬럼 확장 (텍스트 붙여넣기 지원).
+          // ※ from < 2 경로는 위에서 csvParserProfiles를 현재 스키마로
+          //   새로 만들기 때문에 이미 신규 컬럼을 갖고 있다.
+          //   중복 addColumn을 피하려고 from >= 2 조건을 둔다.
+          if (from >= 2 && from < 3) {
+            await m.addColumn(csvParserProfiles, csvParserProfiles.sourceType);
+            await m.addColumn(csvParserProfiles, csvParserProfiles.withdrawCol);
+            await m.addColumn(csvParserProfiles, csvParserProfiles.depositCol);
+            await m.addColumn(csvParserProfiles, csvParserProfiles.balanceCol);
+            await m.addColumn(csvParserProfiles, csvParserProfiles.txnTypeCol);
+            await m.addColumn(
+                csvParserProfiles, csvParserProfiles.headerKeyword);
+            await m.addColumn(csvParserProfiles, csvParserProfiles.rowOrder);
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA journal_mode=WAL');
@@ -124,6 +154,15 @@ class AppDatabase extends _$AppDatabase {
   // ▣  핵심 쿼리 (ERD v1.1 §6)
   // ════════════════════════════════════════════════════════════
 
+  // ── 합계 제외 조건 ★ v1.4 ─────────────────────────────────
+  /// 수입·지출 합계에서 빼야 하는 거래를 걸러내는 WHERE 절 조각.
+  /// categories.exclude_from_totals = 1인 카테고리(기본값: '이체')를 제외한다.
+  /// 미분류 거래(category_id IS NULL)는 COALESCE로 포함된다.
+  ///
+  /// ※ 이 조건을 쓰는 쿼리는 `LEFT JOIN categories c ON t.category_id = c.id`가
+  ///   필요하며 readsFrom에 categories를 포함해야 한다.
+  static const String _notExcluded = 'COALESCE(c.exclude_from_totals, 0) = 0';
+
   // ── 6.1 개인 뷰 — 월별 수입/지출 합계 ─────────────────────
   Future<({int income, int expense})> getMonthlySummary({
     required int profileId,
@@ -133,19 +172,21 @@ class AppDatabase extends _$AppDatabase {
     final result = await customSelect(
       '''
       SELECT
-        COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
-        COALESCE(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 0) AS expense
-      FROM transactions
-      WHERE profile_id = :profileId
-        AND txn_date >= :monthStart
-        AND txn_date  < :monthEnd
+        COALESCE(SUM(CASE WHEN t.amount > 0 THEN t.amount ELSE 0 END), 0) AS income,
+        COALESCE(SUM(CASE WHEN t.amount < 0 THEN t.amount ELSE 0 END), 0) AS expense
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.profile_id = :profileId
+        AND t.txn_date >= :monthStart
+        AND t.txn_date  < :monthEnd
+        AND $_notExcluded
       ''',
       variables: [
         Variable.withInt(profileId),
         Variable.withInt(monthStart),
         Variable.withInt(monthEnd),
       ],
-      readsFrom: {transactions},
+      readsFrom: {transactions, categories},
     ).getSingle();
 
     return (
@@ -168,8 +209,10 @@ class AppDatabase extends _$AppDatabase {
         COALESCE(SUM(CASE WHEN t.amount < 0 THEN t.amount ELSE 0 END), 0) AS expense
       FROM transactions t
       JOIN profiles p ON t.profile_id = p.id
+      LEFT JOIN categories c ON t.category_id = c.id
       WHERE t.txn_date >= :monthStart
         AND t.txn_date  < :monthEnd
+        AND $_notExcluded
       GROUP BY t.profile_id
       ORDER BY p.id
       ''',
@@ -177,7 +220,7 @@ class AppDatabase extends _$AppDatabase {
         Variable.withInt(monthStart),
         Variable.withInt(monthEnd),
       ],
-      readsFrom: {transactions, profiles},
+      readsFrom: {transactions, profiles, categories},
     ).get();
   }
 
@@ -213,12 +256,18 @@ class AppDatabase extends _$AppDatabase {
   }
 
   // ── 6.5 파서 프로필 자동 매칭 ──────────────────────────────
+  /// [sourceType]: 'file'(CSV 파일) | 'paste'(텍스트 붙여넣기).
+  /// 같은 기관도 입력 방식에 따라 컬럼 구성이 달라 프로필을 분리해 조회한다.
   Future<CsvParserProfile?> getParserProfile({
     required String institutionCode,
+    String sourceType = 'file',
   }) {
     return (select(csvParserProfiles)
           ..where((t) =>
-              t.institutionCode.equals(institutionCode) & t.isActive.equals(1))
+              t.institutionCode.equals(institutionCode) &
+              t.sourceType.equals(sourceType) &
+              t.isActive.equals(1))
+          ..orderBy([(t) => OrderingTerm.asc(t.id)])
           ..limit(1))
         .getSingleOrNull();
   }
@@ -262,6 +311,7 @@ class AppDatabase extends _$AppDatabase {
       WHERE $amountFilter
         AND t.txn_date >= :monthStart
         AND t.txn_date  < :monthEnd
+        AND $_notExcluded
         $profileFilter
       GROUP BY t.category_id
       ORDER BY total_expense DESC
@@ -302,18 +352,20 @@ class AppDatabase extends _$AppDatabase {
     final endMs = DateTime(year, month + 1, 1).millisecondsSinceEpoch;
 
     final profileFilter =
-        profileId != null ? 'AND profile_id = $profileId' : '';
+        profileId != null ? 'AND t.profile_id = $profileId' : '';
 
     final rows = await customSelect(
       '''
       SELECT
-        CAST(strftime('%Y', datetime(txn_date / 1000, 'unixepoch')) AS INTEGER) AS yr,
-        CAST(strftime('%m', datetime(txn_date / 1000, 'unixepoch')) AS INTEGER) AS mo,
-        COALESCE(SUM(CASE WHEN amount > 0 THEN  amount ELSE 0 END), 0) AS income,
-        COALESCE(SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END), 0) AS expense
-      FROM transactions
-      WHERE txn_date >= :startMs
-        AND txn_date  < :endMs
+        CAST(strftime('%Y', datetime(t.txn_date / 1000, 'unixepoch')) AS INTEGER) AS yr,
+        CAST(strftime('%m', datetime(t.txn_date / 1000, 'unixepoch')) AS INTEGER) AS mo,
+        COALESCE(SUM(CASE WHEN t.amount > 0 THEN  t.amount ELSE 0 END), 0) AS income,
+        COALESCE(SUM(CASE WHEN t.amount < 0 THEN -t.amount ELSE 0 END), 0) AS expense
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.txn_date >= :startMs
+        AND t.txn_date  < :endMs
+        AND $_notExcluded
         $profileFilter
       GROUP BY yr, mo
       ORDER BY yr, mo
@@ -322,7 +374,7 @@ class AppDatabase extends _$AppDatabase {
         Variable.withInt(startMs),
         Variable.withInt(endMs),
       ],
-      readsFrom: {transactions},
+      readsFrom: {transactions, categories},
     ).get();
 
     // 데이터가 없는 달도 0으로 채워서 반환 (차트 축 유지)
@@ -428,11 +480,14 @@ class AppDatabase extends _$AppDatabase {
           icon: const Value('account_balance'),
           colorHex: const Value('#98FB98'),
           isCustom: const Value(0)),
+      // 부부 간 송금 등 가계 외부로 나가지 않는 돈.
+      // 합계에서 제외해야 실제 소비액이 드러난다.
       CategoriesCompanion.insert(
           name: '이체',
           icon: const Value('swap_horiz'),
           colorHex: const Value('#DEB887'),
-          isCustom: const Value(0)),
+          isCustom: const Value(0),
+          excludeFromTotals: const Value(1)),
       CategoriesCompanion.insert(
           name: '기타',
           icon: const Value('more_horiz'),

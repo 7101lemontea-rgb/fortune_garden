@@ -57,6 +57,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # 마이그레이션 테스트에서 v2 스키마를 직접 만들기 위해 사용 (raw SQL)
+  sqlite3: ^2.9.4
   build_runner: ^2.5.4
   drift_dev: ^2.28.0
   riverpod_generator: ^2.4.0

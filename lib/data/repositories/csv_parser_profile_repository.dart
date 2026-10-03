@@ -10,8 +10,14 @@ class CsvParserProfileRepository implements ICsvParserProfileRepository {
   final AppDatabase _db;
 
   @override
-  Future<CsvParserProfile?> getByInstitution(String institutionCode) =>
-      _db.getParserProfile(institutionCode: institutionCode);
+  Future<CsvParserProfile?> getByInstitution(
+    String institutionCode, {
+    String sourceType = 'file',
+  }) =>
+      _db.getParserProfile(
+        institutionCode: institutionCode,
+        sourceType: sourceType,
+      );
 
   @override
   Future<List<CsvParserProfile>> getAll() =>

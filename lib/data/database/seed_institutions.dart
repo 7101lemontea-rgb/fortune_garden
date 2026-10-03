@@ -15,7 +15,6 @@
 import 'package:drift/drift.dart';
 
 import 'app_database.dart';
-import 'tables.dart';
 
 // ─────────────────────────────────────────────────────────────
 // 금융기관 Seed Data 삽입
@@ -73,17 +72,46 @@ final List<InstitutionsCompanion> _institutions = [
 // CSV 파서 프로필 기본 Seed (은행별 대표 CSV 형식)  ★ v1.1 신규
 // ─────────────────────────────────────────────────────────────
 
-/// 주요 기관의 기본 CSV 파서 프로필 삽입(upsert).
-/// 실제 기관별 CSV 형식이 확정되면 이 함수를 확장하여 관리.
+/// 주요 기관의 기본 파서 프로필 삽입(upsert).
+/// 실제 기관별 형식이 확정되면 이 함수를 확장하여 관리.
+///
+/// ※ (institution_code, source_type)을 논리 식별자로 삼아 수동 upsert한다.
+///   csv_parser_profiles의 PK는 autoIncrement id이므로
+///   insertAllOnConflictUpdate()는 충돌 대상이 없어 매 호출마다
+///   새 행을 추가해버린다(앱 실행마다 중복 누적).
+///   같은 조합의 과거 중복 행은 첫 행만 남기고 정리한다.
 Future<void> seedCsvParserProfiles(AppDatabase db) async {
-  await db.batch((b) {
-    b.insertAllOnConflictUpdate(
-      db.csvParserProfiles,
-      _defaultParserProfiles,
-    );
-  });
+  for (final profile in _defaultParserProfiles) {
+    final code = profile.institutionCode.value;
+    final source = profile.sourceType.value;
+
+    final existing = await (db.select(db.csvParserProfiles)
+          ..where((t) =>
+              t.institutionCode.equals(code) & t.sourceType.equals(source))
+          ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+        .get();
+
+    if (existing.isEmpty) {
+      await db.into(db.csvParserProfiles).insert(profile);
+      continue;
+    }
+
+    // 첫 행만 최신 기본값으로 갱신
+    await (db.update(db.csvParserProfiles)
+          ..where((t) => t.id.equals(existing.first.id)))
+        .write(profile);
+
+    // 과거에 누적된 중복 행 제거
+    if (existing.length > 1) {
+      final dupIds = existing.skip(1).map((e) => e.id).toList();
+      await (db.delete(db.csvParserProfiles)
+            ..where((t) => t.id.isIn(dupIds)))
+          .go();
+    }
+  }
 }
 
+/// CSV 파일용 프로필 (단일 금액 컬럼).
 CsvParserProfilesCompanion _parser({
   required String institutionCode,
   required String dateCol,
@@ -96,6 +124,7 @@ CsvParserProfilesCompanion _parser({
 }) =>
     CsvParserProfilesCompanion.insert(
       institutionCode: institutionCode,
+      sourceType: const Value('file'),
       dateCol: dateCol,
       amountCol: amountCol,
       merchantCol: merchantCol,
@@ -103,6 +132,42 @@ CsvParserProfilesCompanion _parser({
       encoding: Value(encoding),
       delimiter: Value(delimiter),
       skipRows: Value(skipRows),
+      isActive: const Value(1),
+    );
+
+/// 텍스트 붙여넣기용 프로필 (출금·입금 분리 + 잔액).
+/// 은행 웹 화면의 거래내역 표를 복사해 붙여넣는 형식.
+/// 복사 시 열 구분자는 보통 탭이며, 공백으로 변형된 경우도
+/// CsvParserUseCase가 자동 보정한다.
+CsvParserProfilesCompanion _pasteParser({
+  required String institutionCode,
+  required String dateCol,
+  required String withdrawCol,
+  required String depositCol,
+  required String merchantCol,
+  required String dateFormat,
+  String? balanceCol,
+  String? txnTypeCol,
+  String? headerKeyword,
+  String rowOrder = 'desc',
+}) =>
+    CsvParserProfilesCompanion.insert(
+      institutionCode: institutionCode,
+      sourceType: const Value('paste'),
+      dateCol: dateCol,
+      // 입출금 분리 형식이므로 단일 금액 컬럼은 미사용
+      amountCol: '',
+      withdrawCol: Value(withdrawCol),
+      depositCol: Value(depositCol),
+      balanceCol: Value(balanceCol),
+      txnTypeCol: Value(txnTypeCol),
+      merchantCol: merchantCol,
+      dateFormat: dateFormat,
+      encoding: const Value('UTF-8'),
+      delimiter: const Value('\t'),
+      headerKeyword: Value(headerKeyword ?? dateCol),
+      rowOrder: Value(rowOrder),
+      skipRows: const Value(1),
       isActive: const Value(1),
     );
 
@@ -169,5 +234,23 @@ final List<CsvParserProfilesCompanion> _defaultParserProfiles = [
     merchantCol:     '가맹점명',
     dateFormat:      'yyyyMMdd',
     encoding:        'EUC-KR',
+  ),
+
+  // ── 텍스트 붙여넣기 프로필 ★ v1.2 신규 ──────────────────────
+  // 우리은행 — 인터넷뱅킹 '계좌거래내역' 표 복사 형식
+  //   거래일시 / 거래구분 / 기재내용 / 출금금액 / 입금금액 / 잔액 / 취급점
+  // 표 위의 발급기준일·조회기간·계좌번호 메타 줄은
+  // headerKeyword('거래일시')로 헤더 행을 찾아 건너뛴다.
+  // 원본은 최신순이므로 rowOrder='desc' → 저장 전 과거순으로 뒤집는다.
+  _pasteParser(
+    institutionCode: 'WOORI',
+    dateCol:         '거래일시',
+    txnTypeCol:      '거래구분',
+    merchantCol:     '기재내용',
+    withdrawCol:     '출금금액',
+    depositCol:      '입금금액',
+    balanceCol:      '잔액',
+    dateFormat:      'yyyy.MM.dd HH:mm:ss',
+    rowOrder:        'desc',
   ),
 ];

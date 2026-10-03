@@ -118,6 +118,14 @@ class Categories extends Table {
 
   /// 자기 참조 상위 카테고리 ID (NULL = 최상위)
   IntColumn get parentId => integer().nullable()();
+
+  /// 수입·지출 합계에서 제외할지 여부 (0: 포함, 1: 제외)  ★ v1.2 신규
+  ///
+  /// 부부 간 송금처럼 가계 외부로 나가지 않는 돈은 '이체'로 분류한 뒤
+  /// 대시보드·리포트 합계에서 빼야 실제 소비액이 드러난다.
+  /// 기본 카테고리 '이체'는 1로 시드된다.
+  IntColumn get excludeFromTotals =>
+      integer().withDefault(const Constant(0))();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -201,6 +209,15 @@ class CategoryRules extends Table {
 // ─────────────────────────────────────────────────────────────
 /// 기관별 CSV 파싱 설정. 앱 업데이트 없이 신규 기관 대응 가능.
 /// institution_code FK → institutions.code.
+///
+/// v1.2 확장 (텍스트 붙여넣기 가져오기 지원):
+///   - sourceType: 'file'(CSV 파일) / 'paste'(텍스트 붙여넣기) 구분.
+///     같은 기관이라도 파일 형식과 웹 화면 복사 형식이 달라 프로필을 분리한다.
+///   - withdrawCol / depositCol: 출금·입금이 별도 컬럼인 형식 지원.
+///   - balanceCol: 거래 후 잔액. 중복 해시 보강 + 누락 행 검증에 사용.
+///   - txnTypeCol: 거래구분(예: 현카구매, 타행자동). 분류 보조 키.
+///   - headerKeyword: 표 위에 붙은 메타 줄을 건너뛰기 위한 헤더 탐색 키워드.
+///   - rowOrder: 원본 행 정렬 방향. 'desc'면 저장 전 과거순으로 뒤집는다.
 @DataClassName('CsvParserProfile')
 class CsvParserProfiles extends Table {
   /// 파서 프로필 고유 ID
@@ -210,11 +227,29 @@ class CsvParserProfiles extends Table {
   TextColumn get institutionCode =>
       text().references(Institutions, #code, onDelete: KeyAction.restrict)();
 
+  /// 입력 방식: 'file' | 'paste'  ★ v1.2 신규
+  /// (institutionCode, sourceType) 조합이 프로필의 논리적 식별자.
+  TextColumn get sourceType =>
+      text().withDefault(const Constant('file'))();
+
   /// 거래일시 컬럼명 (CSV 헤더 문자열)
   TextColumn get dateCol => text()();
 
-  /// 금액 컬럼명
+  /// 단일 금액 컬럼명.
+  /// ※ withdrawCol·depositCol을 쓰는 입출금 분리 형식에서는 빈 문자열('').
   TextColumn get amountCol => text()();
+
+  /// 출금금액 컬럼명. NULL이면 amountCol 단일 컬럼 방식.  ★ v1.2 신규
+  TextColumn get withdrawCol => text().nullable()();
+
+  /// 입금금액 컬럼명. NULL이면 amountCol 단일 컬럼 방식.  ★ v1.2 신규
+  TextColumn get depositCol => text().nullable()();
+
+  /// 거래 후 잔액 컬럼명. NULL이면 잔액 미사용.  ★ v1.2 신규
+  TextColumn get balanceCol => text().nullable()();
+
+  /// 거래구분 컬럼명. NULL이면 미사용.  ★ v1.2 신규
+  TextColumn get txnTypeCol => text().nullable()();
 
   /// 거래처명 컬럼명
   TextColumn get merchantCol => text()();
@@ -230,7 +265,14 @@ class CsvParserProfiles extends Table {
   TextColumn get delimiter =>
       text().withDefault(const Constant(','))();
 
-  /// 헤더 행 수 (건너뛸 행 수)
+  /// 헤더 행 탐색 키워드. NULL이면 첫 행을 헤더로 간주.  ★ v1.2 신규
+  TextColumn get headerKeyword => text().nullable()();
+
+  /// 원본 행 정렬 방향: 'asc'(과거순) | 'desc'(최신순)  ★ v1.2 신규
+  TextColumn get rowOrder =>
+      text().withDefault(const Constant('asc'))();
+
+  /// 헤더 행 수 (건너뛸 행 수). headerKeyword 사용 시 무시됨.
   IntColumn get skipRows => integer().withDefault(const Constant(1))();
 
   /// 활성화 여부 (0이면 비활성)

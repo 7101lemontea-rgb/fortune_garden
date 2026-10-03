@@ -27,10 +27,20 @@ class AccountRepository implements IAccountRepository {
       _db.into(_db.accounts).insertOnConflictUpdate(companion);
 
   @override
-  Future<void> updateBalance(int id, int balance) =>
+  Future<void> updateBalance(
+    int id,
+    int? balance, {
+    int? lastSyncedAt,
+  }) =>
       (_db.update(_db.accounts)
             ..where((t) => t.id.equals(id)))
-          .write(AccountsCompanion(balance: Value(balance)));
+          .write(AccountsCompanion(
+            // absent()로 두면 해당 컬럼은 UPDATE 문에서 제외된다.
+            balance: balance != null ? Value(balance) : const Value.absent(),
+            lastSyncedAt: lastSyncedAt != null
+                ? Value(lastSyncedAt)
+                : const Value.absent(),
+          ));
 
   @override
   Future<void> delete(int id) =>

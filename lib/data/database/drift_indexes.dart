@@ -7,8 +7,14 @@
 //    인덱스를 자동 생성합니다.
 //
 // ERD v1.1 §5 인덱스 전략 전체 구현:
-//   transactions     ×5 (idx_txn_profile_date UNIQUE, idx_txn_account_date,
+//   transactions     ×5 (idx_txn_profile_date, idx_txn_account_date,
 //                        idx_txn_category, idx_txn_hash UNIQUE, idx_txn_date)
+//
+// ★ 주의 (v1.2 수정): idx_txn_profile_date의 UNIQUE를 해제했다.
+//   은행 거래내역에는 같은 초에 발생한 서로 다른 거래가 존재한다.
+//   예) 2026.09.29 10:31:22 다이소 결제 15,200원 + 같은 시각 캐시백 76원
+//   (profile_id, txn_date)에 UNIQUE를 걸면 두 번째 행의 삽입이 실패한다.
+//   중복 방지는 idx_txn_hash(UNIQUE)가 담당한다.
 //   accounts         ×1 (idx_acc_profile)
 //   category_rules   ×1 (idx_rule_keyword)
 //   import_history   ×1 (idx_import_account_date)           ★ v1.1 신규
@@ -27,10 +33,10 @@ import 'tables.dart';
 /// transactions 테이블에 모든 인덱스를 선언한 확장 클래스.
 /// tables.dart의 Transactions 클래스를 그대로 상속하고
 /// @TableIndex 어노테이션을 추가한다.
+// ※ unique: true 금지. 같은 초에 두 건 이상의 거래가 들어올 수 있다.
 @TableIndex(
   name: 'idx_txn_profile_date',
   columns: {#profileId, #txnDate},
-  unique: true,
 )
 @TableIndex(
   name: 'idx_txn_account_date',
