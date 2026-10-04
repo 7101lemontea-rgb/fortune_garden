@@ -72,8 +72,13 @@ final List<InstitutionsCompanion> _institutions = [
 // CSV 파서 프로필 기본 Seed (은행별 대표 CSV 형식)  ★ v1.1 신규
 // ─────────────────────────────────────────────────────────────
 
-/// 주요 기관의 기본 파서 프로필 삽입(upsert).
-/// 실제 기관별 형식이 확정되면 이 함수를 확장하여 관리.
+/// 기관별 파서 프로필 삽입(upsert).
+///
+/// - CSV 파일 프로필: 주요 기관의 대표 형식(_defaultParserProfiles).
+/// - 붙여넣기 프로필: 등록된 **모든 기관**(은행·카드·증권)에 1개씩 자동 생성.
+///   열 인식은 CsvParserUseCase가 동의어로 처리하므로 기관별 설정이 필요 없고,
+///   기관을 추가해도 여기서 자동으로 붙여넣기 프로필이 생긴다.
+///   (은행만 하드코딩하면 증권·카드가 "파서 없음"이 되는 문제를 방지)
 ///
 /// ※ (institution_code, source_type)을 논리 식별자로 삼아 수동 upsert한다.
 ///   csv_parser_profiles의 PK는 autoIncrement id이므로
@@ -81,33 +86,47 @@ final List<InstitutionsCompanion> _institutions = [
 ///   새 행을 추가해버린다(앱 실행마다 중복 누적).
 ///   같은 조합의 과거 중복 행은 첫 행만 남기고 정리한다.
 Future<void> seedCsvParserProfiles(AppDatabase db) async {
-  for (final profile in _defaultParserProfiles) {
-    final code = profile.institutionCode.value;
-    final source = profile.sourceType.value;
+  final profiles = <CsvParserProfilesCompanion>[
+    ..._defaultParserProfiles,
+    // 등록된 모든 기관에 붙여넣기 프로필 1개씩.
+    for (final inst in await db.select(db.institutions).get())
+      _genericPaste(inst.code),
+  ];
 
-    final existing = await (db.select(db.csvParserProfiles)
-          ..where((t) =>
-              t.institutionCode.equals(code) & t.sourceType.equals(source))
-          ..orderBy([(t) => OrderingTerm.asc(t.id)]))
-        .get();
+  for (final profile in profiles) {
+    await _upsertProfile(db, profile);
+  }
+}
 
-    if (existing.isEmpty) {
-      await db.into(db.csvParserProfiles).insert(profile);
-      continue;
-    }
+/// (institution_code, source_type) 기준 수동 upsert + 과거 중복 정리.
+Future<void> _upsertProfile(
+  AppDatabase db,
+  CsvParserProfilesCompanion profile,
+) async {
+  final code = profile.institutionCode.value;
+  final source = profile.sourceType.value;
 
-    // 첫 행만 최신 기본값으로 갱신
-    await (db.update(db.csvParserProfiles)
-          ..where((t) => t.id.equals(existing.first.id)))
-        .write(profile);
+  final existing = await (db.select(db.csvParserProfiles)
+        ..where((t) =>
+            t.institutionCode.equals(code) & t.sourceType.equals(source))
+        ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+      .get();
 
-    // 과거에 누적된 중복 행 제거
-    if (existing.length > 1) {
-      final dupIds = existing.skip(1).map((e) => e.id).toList();
-      await (db.delete(db.csvParserProfiles)
-            ..where((t) => t.id.isIn(dupIds)))
-          .go();
-    }
+  if (existing.isEmpty) {
+    await db.into(db.csvParserProfiles).insert(profile);
+    return;
+  }
+
+  // 첫 행만 최신 기본값으로 갱신
+  await (db.update(db.csvParserProfiles)
+        ..where((t) => t.id.equals(existing.first.id)))
+      .write(profile);
+
+  // 과거에 누적된 중복 행 제거
+  if (existing.length > 1) {
+    final dupIds = existing.skip(1).map((e) => e.id).toList();
+    await (db.delete(db.csvParserProfiles)..where((t) => t.id.isIn(dupIds)))
+        .go();
   }
 }
 
@@ -236,21 +255,29 @@ final List<CsvParserProfilesCompanion> _defaultParserProfiles = [
     encoding:        'EUC-KR',
   ),
 
-  // ── 텍스트 붙여넣기 프로필 ★ v1.2 신규 ──────────────────────
-  // 우리은행 — 인터넷뱅킹 '계좌거래내역' 표 복사 형식
-  //   거래일시 / 거래구분 / 기재내용 / 출금금액 / 입금금액 / 잔액 / 취급점
-  // 표 위의 발급기준일·조회기간·계좌번호 메타 줄은
-  // headerKeyword('거래일시')로 헤더 행을 찾아 건너뛴다.
-  // 원본은 최신순이므로 rowOrder='desc' → 저장 전 과거순으로 뒤집는다.
-  _pasteParser(
-    institutionCode: 'WOORI',
-    dateCol:         '거래일시',
-    txnTypeCol:      '거래구분',
-    merchantCol:     '기재내용',
-    withdrawCol:     '출금금액',
-    depositCol:      '입금금액',
-    balanceCol:      '잔액',
-    dateFormat:      'yyyy.MM.dd HH:mm:ss',
-    rowOrder:        'desc',
-  ),
 ];
+
+// ── 텍스트 붙여넣기 프로필 ★ v1.2 신규 ──────────────────────
+// 붙여넣기 프로필은 seedCsvParserProfiles()에서 등록된 모든 기관에 대해
+// _genericPaste()로 자동 생성한다(은행·카드·증권 공통).
+// 열 인식은 CsvParserUseCase가 동의어로 처리하므로(기재내용/적요/종목 등)
+// 기관별로 열 이름을 맞출 필요가 없다.
+
+/// 기관 공통 붙여넣기 프로필. 열 이름은 동의어로 자동 인식되므로
+/// 가장 흔한 기본값만 힌트로 둔다.
+///
+/// · 날짜 형식: 파서가 시간 유무·구분자(./-)를 자동 판별하므로 대표값만 지정.
+/// · rowOrder='desc': 대부분의 거래내역 화면이 최신순 → 저장 전 과거순으로 뒤집음.
+///   (잔액 열로 정렬 검증도 하므로 혹시 순서가 달라도 중복/금액은 안전)
+CsvParserProfilesCompanion _genericPaste(String institutionCode) =>
+    _pasteParser(
+      institutionCode: institutionCode,
+      dateCol:         '거래일시',
+      txnTypeCol:      '거래구분',
+      merchantCol:     '기재내용',
+      withdrawCol:     '출금금액',
+      depositCol:      '입금금액',
+      balanceCol:      '잔액',
+      dateFormat:      'yyyy.MM.dd HH:mm:ss',
+      rowOrder:        'desc',
+    );

@@ -137,6 +137,106 @@ void main() {
     });
   });
 
+  group('날짜 형식 유연성', () {
+    // 프로필은 'yyyy.MM.dd HH:mm:ss'로 지정돼 있지만,
+    // 실제 우리은행 화면은 날짜만(2026.09.22) 오는 경우가 있다.
+    // 두 경우 모두 파싱되어야 한다 (한쪽만 되면 전부 0건으로 걸러짐).
+
+    test('날짜만 있는 행(시간 없음)도 파싱된다', () {
+      final parsed = parser.parseFromString(
+        content: '거래일시\t거래구분\t기재내용\t출금금액\t입금금액\t잔액\n'
+            '2026.09.22\t예금신규\t우리은행\t0원\t100,000,000원\t100,000,000원\n',
+        parserProfile: _wooriPasteProfile,
+      );
+      expect(parsed.length, 1);
+      expect(parsed.single.amount, 100000000);
+      expect(parsed.single.merchant, '우리은행');
+      expect(
+        DateTime.fromMillisecondsSinceEpoch(parsed.single.txnDate),
+        DateTime(2026, 9, 22),
+      );
+    });
+
+    test('시간이 포함된 행도 여전히 파싱된다', () {
+      final parsed = parser.parseFromString(
+        content: '거래일시\t거래구분\t기재내용\t출금금액\t입금금액\t잔액\n'
+            '2026.09.22 15:00:00\t예금신규\t우리은행\t0원\t100,000,000원\t100,000,000원\n',
+        parserProfile: _wooriPasteProfile,
+      );
+      expect(parsed.length, 1);
+      expect(
+        DateTime.fromMillisecondsSinceEpoch(parsed.single.txnDate),
+        DateTime(2026, 9, 22, 15, 0, 0),
+      );
+    });
+  });
+
+  group('은행 공통 동의어 인식 (seed의 _bankPaste와 동일 설정)', () {
+    // 열 이름을 은행별로 지정하지 않고 동의어로 자동 인식하는지 검증.
+    const bankPaste = CsvParserProfile(
+      id: 2, institutionCode: 'NH', sourceType: 'paste',
+      dateCol: '거래일시', amountCol: '', withdrawCol: '출금금액',
+      depositCol: '입금금액', balanceCol: '잔액', txnTypeCol: '거래구분',
+      merchantCol: '기재내용', dateFormat: 'yyyy.MM.dd HH:mm:ss',
+      encoding: 'UTF-8', delimiter: '\t', headerKeyword: '거래일시',
+      rowOrder: 'desc', skipRows: 1, isActive: 1,
+    );
+
+    test('농협 형식(거래일자/적요/거래후잔액, 거래구분 없음)을 인식한다', () {
+      // 열 이름이 프로필 기본값과 다르지만 동의어로 매칭되어야 한다.
+      final parsed = parser.parseFromString(
+        content: '거래일자\t적요\t출금금액\t입금금액\t거래후잔액\n'
+            '2026.09.20\t김철수\t0\t500,000\t1,500,000\n'
+            '2026.09.21\t마트결제\t30,000\t0\t1,470,000\n',
+        parserProfile: bankPaste,
+      );
+      // 원본이 과거순(오름차순)이지만 rowOrder=desc라 뒤집힌다.
+      expect(parsed.length, 2);
+      // 뒤집힘: [마트결제(-30,000), 김철수(+500,000)]
+      expect(parsed[0].merchant, '마트결제');
+      expect(parsed[0].amount, -30000);
+      expect(parsed[1].merchant, '김철수');
+      expect(parsed[1].amount, 500000);
+      expect(parsed[1].balanceAfter, 1500000);
+      // 거래구분 열이 없으므로 txnType은 null
+      expect(parsed[0].txnType, isNull);
+    });
+
+    test('토스 형식(단일 금액 열, +/- 부호)을 인식한다', () {
+      // 출금·입금이 한 열에 부호로 들어오는 형식.
+      final parsed = parser.parseFromString(
+        content: '거래일시\t적요\t거래금액\t잔액\n'
+            '2026.09.22 10:00:00\t스타벅스\t-4,500\t95,500\n',
+        parserProfile: bankPaste,
+      );
+      expect(parsed.length, 1);
+      expect(parsed.single.merchant, '스타벅스');
+      expect(parsed.single.amount, -4500); // 단일 열 음수 부호
+      expect(parsed.single.balanceAfter, 95500);
+    });
+
+    test("상대방 열 이름이 '받는분/보내는분'이어도 인식한다", () {
+      final parsed = parser.parseFromString(
+        content: '거래일시\t받는분/보내는분\t출금금액\t입금금액\t잔액\n'
+            '2026.09.22\t홍길동\t10,000\t0\t90,000\n',
+        parserProfile: bankPaste,
+      );
+      expect(parsed.length, 1);
+      expect(parsed.single.merchant, '홍길동');
+      expect(parsed.single.amount, -10000);
+    });
+
+    test("'출금금액'이 단일 금액('금액')으로 오인식되지 않는다", () {
+      // 출금/입금 분리가 있으면 단일 금액 열은 찾지 않아야 한다.
+      final parsed = parser.parseFromString(
+        content: '거래일시\t적요\t출금금액\t입금금액\t잔액\n'
+            '2026.09.22\t테스트\t1,000\t0\t9,000\n',
+        parserProfile: bankPaste,
+      );
+      expect(parsed.single.amount, -1000); // 출금 1,000 → -1,000
+    });
+  });
+
   group('필수 컬럼이 없는 입력', () {
     test('헤더를 찾지 못하면 FormatException을 던진다', () {
       expect(
@@ -146,6 +246,16 @@ void main() {
         ),
         throwsA(isA<FormatException>()),
       );
+    });
+
+    test('날짜를 어떤 형식으로도 해석할 수 없으면 그 행은 건너뛴다', () {
+      // 헤더는 인식되지만 날짜가 깨진 행 → 0건 (예외로 전체 중단되지 않음)
+      final parsed = parser.parseFromString(
+        content: '거래일시\t거래구분\t기재내용\t출금금액\t입금금액\t잔액\n'
+            '날짜아님\t예금신규\t우리은행\t0원\t100원\t100원\n',
+        parserProfile: _wooriPasteProfile,
+      );
+      expect(parsed, isEmpty);
     });
   });
 }

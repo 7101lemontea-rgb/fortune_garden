@@ -65,6 +65,20 @@ dev_dependencies:
   freezed: ^2.5.2
   json_serializable: ^6.7.1
   flutter_lints: ^6.0.0
+  # 앱 아이콘 생성 (assets/icon/app_icon.png → 각 플랫폼 아이콘)
+  flutter_launcher_icons: ^0.14.1
+
+# 앱 아이콘 설정. 변경 시: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+  windows:
+    generate: true
+    icon_size: 256
+  android: true
+  # 안드로이드 적응형 아이콘: 원형 디자인이 마스킹에 잘리지 않도록
+  # 배경은 아이콘 배경색(베이지), 전경은 같은 이미지를 사용.
+  adaptive_icon_background: "#EAE2BF"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
 
 flutter:
   uses-material-design: true

@@ -27,6 +27,49 @@ import '../../data/database/app_database.dart';
 import '../../domain/entities/parsed_transaction.dart';
 
 // ─────────────────────────────────────────────────────────
+// 붙여넣기 열 머리글 동의어 (은행 공통)
+// ─────────────────────────────────────────────────────────
+//
+// 한국 은행 거래내역의 열 이름은 은행마다 조금씩 다르다.
+// 뜻이 같은 표현을 모아 두고, 붙여넣기 파싱 시 자동으로 매칭한다.
+// 더 구체적인 이름을 앞에 둔다('거래금액'을 '금액'보다 먼저 등).
+//
+// ※ 실제 은행 머리글이 여기에 없으면 해당 열을 못 찾아 "가져오기 실패"로
+//   머리글이 표시된다(조용한 0건이 아님). 새 표현은 이 목록에 추가하면 된다.
+
+const List<String> _dateSynonyms = [
+  '거래일시', '거래일자', '거래날짜', '거래일', '거래 일시', '거래 일자',
+  '일자', '날짜', '이용일시', '이용일자', '이용일',
+];
+
+const List<String> _typeSynonyms = [
+  '거래구분', '구분', '거래유형', '유형', '적요구분',
+];
+
+const List<String> _merchantSynonyms = [
+  '기재내용', '적요', '거래내용', '내용', '가맹점명', '가맹점',
+  '거래처', '거래기관', '보내는분', '받는분', '받는분/보내는분', '상대방',
+  '메모', '내역',
+];
+
+const List<String> _withdrawSynonyms = [
+  '출금금액', '출금액', '출금', '지급금액', '지급', '보낸금액', '결제금액',
+];
+
+const List<String> _depositSynonyms = [
+  '입금금액', '입금액', '입금', '받은금액',
+];
+
+// 출금·입금이 한 열에 +/-로 들어오는 형식(토스뱅크 등).
+const List<String> _amountSynonyms = [
+  '거래금액', '금액', '거래 금액',
+];
+
+const List<String> _balanceSynonyms = [
+  '거래후잔액', '거래 후 잔액', '잔액', '잔고', '거래후 잔액',
+];
+
+// ─────────────────────────────────────────────────────────
 // 행 분리 방식
 // ─────────────────────────────────────────────────────────
 
@@ -257,6 +300,12 @@ class CsvParserUseCase {
     List<List<String>> rows,
     CsvParserProfile   profile,
   ) {
+    // 붙여넣기는 은행마다 열 이름이 달라(기재내용/적요 등)
+    // 동의어 기반으로 열을 인식한다. 파일은 기존대로 지정 이름만 사용.
+    if (profile.sourceType == 'paste') {
+      return _resolvePasteLayout(rows, profile);
+    }
+
     final keyword = profile.headerKeyword;
 
     // 헤더 행 위치: 키워드가 있으면 탐색, 없으면 첫 행.
@@ -307,17 +356,111 @@ class CsvParserUseCase {
     );
   }
 
-  /// 헤더에서 컬럼 위치 찾기. 정확히 일치 우선, 없으면 부분 일치.
-  int? _colIndex(List<String> header, String? name) {
-    if (name == null || name.isEmpty) return null;
+  /// 붙여넣기 전용 레이아웃 분석 (은행 공통).
+  ///
+  /// 열 이름을 정확히 몰라도 한국 은행에서 흔한 머리글 표현을 동의어로
+  /// 인식한다. 프로필에 지정된 이름을 먼저 시도하고, 못 찾으면 동의어로
+  /// 폴백한다. 이렇게 하면 토스·농협 등 서로 다른 은행의 거래내역을
+  /// 은행별 열 이름을 일일이 등록하지 않고도 처리할 수 있다.
+  _Layout? _resolvePasteLayout(
+    List<List<String>> rows,
+    CsvParserProfile   profile,
+  ) {
+    final dateC     = _candidates(profile.dateCol, _dateSynonyms);
+    final merchantC = _candidates(profile.merchantCol, _merchantSynonyms);
+    final withdrawC = _candidates(profile.withdrawCol, _withdrawSynonyms);
+    final depositC  = _candidates(profile.depositCol, _depositSynonyms);
+    final amountC   = _candidates(profile.amountCol, _amountSynonyms);
+    final balanceC  = _candidates(profile.balanceCol, _balanceSynonyms);
+    final typeC     = _candidates(profile.txnTypeCol, _typeSynonyms);
 
-    final exact = header.indexOf(name);
-    if (exact >= 0) return exact;
+    // 헤더 행: 날짜 열 + (출금/입금/금액/잔액 중 하나)이 함께 있는 행.
+    // 표 위 메타 줄(발급기준일·조회기간 등)을 안전하게 건너뛴다.
+    int headerRow = -1;
+    List<String> header = const [];
+    for (var i = 0; i < rows.length; i++) {
+      final cells = rows[i].map((c) => c.trim()).toList();
+      final hasDate = _findColumn(cells, dateC) != null;
+      final hasMoney = _findColumn(cells, withdrawC) != null ||
+          _findColumn(cells, depositC) != null ||
+          _findColumn(cells, amountC) != null ||
+          _findColumn(cells, balanceC) != null;
+      if (hasDate && hasMoney) {
+        headerRow = i;
+        header = cells;
+        break;
+      }
+    }
+    if (headerRow < 0) return null;
 
-    for (var i = 0; i < header.length; i++) {
-      if (header[i].contains(name)) return i;
+    final dateIdx     = _findColumn(header, dateC);
+    final merchantIdx = _findColumn(header, merchantC);
+    final withdrawIdx = _findColumn(header, withdrawC);
+    final depositIdx  = _findColumn(header, depositC);
+    // 출금·입금 분리가 확인되면 단일 금액 열은 찾지 않는다.
+    // ('출금금액'이 '금액' 부분일치에 걸리는 오인식 방지)
+    final amountIdx = (withdrawIdx == null && depositIdx == null)
+        ? _findColumn(header, amountC)
+        : null;
+
+    if (dateIdx == null || merchantIdx == null) return null;
+    if (amountIdx == null && withdrawIdx == null && depositIdx == null) {
+      return null;
+    }
+
+    // 서로 다른 열이 같은 셀로 매칭되면(= 분리가 제대로 안 됨) 거부한다.
+    // 예: 구분자(탭)로 나눴더니 한 줄이 통째로 1개 셀이 된 경우.
+    //     부분 일치로 date·merchant·금액이 모두 index 0을 가리킨다.
+    // → 이 후보를 버리면 상위 루프가 다음 구분자(공백)로 재시도한다.
+    final keyIdx = <int>[
+      dateIdx,
+      merchantIdx,
+      if (withdrawIdx != null) withdrawIdx,
+      if (depositIdx != null) depositIdx,
+      if (amountIdx != null) amountIdx,
+    ];
+    if (keyIdx.toSet().length != keyIdx.length) return null;
+
+    return _Layout(
+      firstDataRow: headerRow + 1,
+      dateIdx:      dateIdx,
+      merchantIdx:  merchantIdx,
+      amountIdx:    amountIdx,
+      withdrawIdx:  withdrawIdx,
+      depositIdx:   depositIdx,
+      balanceIdx:   _findColumn(header, balanceC),
+      txnTypeIdx:   _findColumn(header, typeC),
+    );
+  }
+
+  /// 프로필 지정 이름을 맨 앞에 두고 동의어를 이어붙인 후보 목록.
+  /// 지정 이름이 비었거나 이미 동의어에 있으면 중복을 피한다.
+  List<String> _candidates(String? configured, List<String> synonyms) {
+    if (configured == null || configured.isEmpty) return synonyms;
+    if (synonyms.contains(configured)) return synonyms;
+    return [configured, ...synonyms];
+  }
+
+  /// 후보 이름들로 헤더에서 열 위치를 찾는다.
+  /// 정확히 일치를 모든 후보에 대해 먼저 시도하고(더 구체적인 이름 우선),
+  /// 없으면 부분 일치를 시도한다.
+  int? _findColumn(List<String> header, List<String> candidates) {
+    for (final name in candidates) {
+      final exact = header.indexOf(name);
+      if (exact >= 0) return exact;
+    }
+    for (final name in candidates) {
+      for (var i = 0; i < header.length; i++) {
+        if (header[i].contains(name)) return i;
+      }
     }
     return null;
+  }
+
+  /// 헤더에서 컬럼 위치 찾기. 정확히 일치 우선, 없으면 부분 일치. (파일 모드)
+  int? _colIndex(List<String> header, String? name) {
+    if (name == null || name.isEmpty) return null;
+    return _findColumn(header, [name]);
   }
 
   String _layoutErrorMessage(String content, CsvParserProfile profile) {
@@ -326,6 +469,13 @@ class CsvParserUseCase {
         .where((l) => l.trim().isNotEmpty)
         .take(3)
         .join('\n');
+
+    if (profile.sourceType == 'paste') {
+      return '거래내역의 열을 인식하지 못했습니다.\n'
+          '· 열 사이가 탭으로 구분되어 있는지 확인하세요.\n'
+          '· 날짜 열과 (출금/입금 또는 금액) 열, 잔액 열이 있어야 합니다.\n'
+          '입력 앞부분:\n$firstLines';
+    }
 
     final needed = [
       profile.dateCol,
@@ -411,9 +561,36 @@ class CsvParserUseCase {
   }
 
   /// 날짜 문자열 → Unix timestamp (ms)
+  ///
+  /// 프로필에 지정된 형식을 먼저 시도하고, 실패하면 한국 은행에서 흔한
+  /// 형식들을 차례로 시도한다. 같은 은행이라도 조회 화면에 따라 시간이
+  /// 붙기도 하고(`2026.09.22 15:00:00`) 날짜만 오기도 해서(`2026.09.22`),
+  /// 형식을 하나로 고정하면 한쪽이 전부 0건으로 걸러진다.
+  ///
+  /// parseStrict로 문자열 전체가 형식과 맞을 때만 인정한다.
+  /// (`yyyy.MM.dd`로 `2026.09.22 15:00:00`을 부분 매칭해 시간을 버리는 것 방지)
   int _parseDate(String raw, String format) {
-    final dt = DateFormat(format).parse(raw);
-    return dt.millisecondsSinceEpoch;
+    // 지정 형식 우선, 이후 흔한 형식 폴백. 중복은 무해하므로 그대로 둔다.
+    const commonFormats = [
+      'yyyy.MM.dd HH:mm:ss',
+      'yyyy.MM.dd HH:mm',
+      'yyyy.MM.dd',
+      'yyyy-MM-dd HH:mm:ss',
+      'yyyy-MM-dd HH:mm',
+      'yyyy-MM-dd',
+      'yyyy/MM/dd HH:mm:ss',
+      'yyyy/MM/dd',
+      'yyyyMMdd',
+    ];
+
+    for (final fmt in [format, ...commonFormats]) {
+      try {
+        return DateFormat(fmt).parseStrict(raw).millisecondsSinceEpoch;
+      } catch (_) {
+        continue;
+      }
+    }
+    throw FormatException('날짜를 해석할 수 없습니다: "$raw" (지정 형식: $format)');
   }
 
   /// 금액 문자열 → 정수 (원)
